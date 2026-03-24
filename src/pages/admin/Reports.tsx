@@ -90,4 +90,34 @@ export default function AdminReports() {
           <h2 className="font-semibold text-slate-700 mb-4">Por tipo de pago</h2>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={typeBreakdown} layout="vertical">
-              <CartesianGrid strokeDasharray="
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+              <XAxis type="number" tick={{ fontSize: 11 }}/><YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={90}/>
+              <Tooltip formatter={(v: number) => [`$${v.toFixed(2)}`]}/>
+              <Bar dataKey="value" fill="#6366f1" radius={[0, 4, 4, 0]}/>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="px-5 py-4 border-b border-slate-100"><h2 className="font-semibold text-slate-700">Lista de deudores ({debtors.length})</h2></div>
+        {debtors.length === 0 ? <p className="text-center text-slate-400 text-sm py-10">Sin deudores — ¡excelente!</p>
+        : <div className="overflow-x-auto"><table className="w-full text-sm">
+            <thead className="bg-slate-50"><tr>{['Estudiante','Grado','Matrícula','Deuda total','Pagos pendientes'].map(h => (
+              <th key={h} className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{h}</th>
+            ))}</tr></thead>
+            <tbody className="divide-y divide-slate-100">
+              {debtors.map(({ student, balance, payments: sp }) => (
+                <tr key={student.id} className="hover:bg-slate-50">
+                  <td className="px-4 py-3 font-medium text-slate-700">{student.fullName}</td>
+                  <td className="px-4 py-3 text-slate-500">{student.grade}{student.section}</td>
+                  <td className="px-4 py-3 text-slate-500 font-mono text-xs">{student.enrollmentCode}</td>
+                  <td className="px-4 py-3 font-bold text-red-600">${balance.toFixed(2)}</td>
+                  <td className="px-4 py-3 text-slate-600">{sp.filter(p => p.status === 'pending' || p.status === 'rejected').length}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table></div>}
+      </div>
+    </div>
+  )
+}
