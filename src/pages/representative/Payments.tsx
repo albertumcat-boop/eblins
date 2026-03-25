@@ -245,4 +245,56 @@ export default function RepresentativePayments() {
           <AlertCircle size={20} className="text-red-500 shrink-0"/>
           <div>
             <p className="font-semibold text-red-700">Deuda pendiente</p>
-            <p className="text-sm text-red-600">Este estudiante tiene una deuda de <strong>${totalDe
+            <p className="text-sm text-red-600">Este estudiante tiene una deuda de <strong>${totalDebt.toFixed(2)}</strong></p>
+          </div>
+        </div>
+      )}
+
+      {!selectedStudentId ? (
+        <div className="text-center py-16 text-slate-400">
+          <p className="text-sm">Selecciona un estudiante para ver sus pagos o haz clic en "Nuevo pago"</p>
+        </div>
+      ) : isLoading ? (
+        <div className="flex justify-center py-10"><div className="w-7 h-7 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"/></div>
+      ) : payments.length === 0 ? (
+        <div className="text-center py-16 text-slate-400"><p className="text-sm">No hay pagos registrados</p></div>
+      ) : (
+        <div className="space-y-3">
+          {payments.map(p => {
+            const cfg = STATUS_LABELS[p.status]; const Icon = cfg?.icon
+            return (
+              <div key={p.id} className="bg-white rounded-xl border border-slate-200 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1">
+                    <p className="font-semibold text-slate-800">{p.description}</p>
+                    <div className="flex flex-wrap gap-3 mt-1 text-sm text-slate-500">
+                      <span>Monto: <strong className="text-slate-700">{(p as any).currency === 'VES' ? 'Bs' : '$'}{p.amount?.toFixed(2)}</strong></span>
+                      {(p as any).reference && <span>Ref: <strong className="font-mono">****{(p as any).reference}</strong></span>}
+                    </div>
+                    {p.dueDate && <p className="text-xs text-slate-400 mt-1">Fecha: {format(toDate(p.dueDate || p.createdAt), "d 'de' MMMM yyyy", { locale: es })}</p>}
+                    {p.rejectionReason && <p className="text-xs text-red-500 mt-1">Rechazado: {p.rejectionReason}</p>}
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={clsx('inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium', cfg?.cls)}>
+                      {Icon && <Icon size={11}/>}{cfg?.label}
+                    </span>
+                    {p.receiptUrl && <a href={p.receiptUrl} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Ver comprobante</a>}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {showNewPayment && appUser && (
+        <NewPaymentModal
+          onClose={() => setShowNewPayment(false)}
+          schoolId={appUser.schoolId}
+          representativeId={appUser.id}
+          students={students}
+        />
+      )}
+    </div>
+  )
+}
