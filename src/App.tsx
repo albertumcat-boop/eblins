@@ -22,6 +22,7 @@ import RepStudentDetail from '@/pages/representative/StudentDetail'
 import TeacherDashboard from '@/pages/teacher/Dashboard'
 import TeacherAnnouncements from '@/pages/teacher/Announcements'
 import TeacherStudents from '@/pages/teacher/Students'
+import RepProfile from '@/pages/representative/Profile'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
@@ -49,6 +50,7 @@ function AppRoutes() {
         <Route path="reports" element={<AdminReports />} />
         <Route path="messages" element={<AdminMessages />} />
         <Route path="settings" element={<AdminSettings />} />
+        <Route path="profile" element={<RepProfile />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
