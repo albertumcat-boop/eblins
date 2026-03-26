@@ -1,9 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import {
-  LayoutDashboard, CreditCard, Users, GraduationCap,
-  BarChart3, MessageSquare, Settings, LogOut, Bell, Menu, X,
-} from 'lucide-react'
+import { LayoutDashboard, CreditCard, Users, GraduationCap, BarChart3, MessageSquare, MessagesSquare, Settings, LogOut, Bell, Menu, X } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToNotifications } from '@/services/db'
 import type { Notification } from '@/types'
@@ -15,6 +12,7 @@ const NAV = [
   { to: '/students', icon: GraduationCap, label: 'Estudiantes' },
   { to: '/users', icon: Users, label: 'Usuarios' },
   { to: '/reports', icon: BarChart3, label: 'Reportes' },
+  { to: '/chat', icon: MessagesSquare, label: 'Chat' },
   { to: '/messages', icon: MessageSquare, label: 'Mensajes' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
 ]
