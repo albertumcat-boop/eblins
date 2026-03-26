@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
-import { LayoutDashboard, Megaphone, GraduationCap, LogOut, Menu, X, BookOpen } from 'lucide-react'
+import { LayoutDashboard, Megaphone, GraduationCap, LogOut, Menu, X, BookOpen, CalendarCheck } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
 
@@ -9,6 +9,7 @@ const NAV = [
   { to: '/announcements', icon: Megaphone, label: 'Anuncios' },
   { to: '/students', icon: GraduationCap, label: 'Estudiantes' },
   { to: '/grades', icon: BookOpen, label: 'Notas' },
+  { to: '/attendance', icon: CalendarCheck, label: 'Asistencia' },
 ]
 
 export default function TeacherLayout() {
