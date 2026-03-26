@@ -5,25 +5,27 @@ import { getSchool, updateSchoolSettings } from '@/services/db'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import toast from 'react-hot-toast'
-import { Save, Plus, Trash2, CreditCard, Smartphone, DollarSign, Banknote } from 'lucide-react'
+import { Save, Plus, Trash2, CreditCard, Calendar, ToggleLeft, ToggleRight } from 'lucide-react'
 
 const PAYMENT_METHOD_TYPES = [
-  { value: 'pago_movil',    label: 'Pago Móvil',          icon: '📱', fields: ['banco', 'telefono', 'cedula'] },
-  { value: 'transferencia', label: 'Transferencia Bancaria', icon: '🏦', fields: ['banco', 'cuenta', 'titular', 'cedula_rif'] },
-  { value: 'zelle',         label: 'Zelle',               icon: '💵', fields: ['email_telefono', 'titular'] },
-  { value: 'efectivo',      label: 'Efectivo',            icon: '💴', fields: ['instrucciones'] },
+  { value: 'pago_movil',    label: 'Pago Móvil',             icon: '📱', fields: ['banco','telefono','cedula'] },
+  { value: 'transferencia', label: 'Transferencia Bancaria', icon: '🏦', fields: ['banco','cuenta','titular','cedula_rif'] },
+  { value: 'zelle',         label: 'Zelle',                  icon: '💵', fields: ['email_telefono','titular'] },
+  { value: 'efectivo',      label: 'Efectivo',               icon: '💴', fields: ['instrucciones'] },
 ]
 
 const FIELD_LABELS: Record<string, string> = {
-  banco:         'Banco',
-  telefono:      'Número de teléfono',
-  cedula:        'Cédula del titular',
-  cuenta:        'Número de cuenta',
-  titular:       'Nombre del titular',
-  cedula_rif:    'Cédula / RIF',
-  email_telefono:'Email o teléfono Zelle',
-  instrucciones: 'Instrucciones para pago en efectivo',
+  banco:          'Banco',
+  telefono:       'Número de teléfono',
+  cedula:         'Cédula del titular',
+  cuenta:         'Número de cuenta',
+  titular:        'Nombre del titular',
+  cedula_rif:     'Cédula / RIF',
+  email_telefono: 'Email o teléfono Zelle',
+  instrucciones:  'Instrucciones para pago en efectivo',
 }
+
+const DAYS = Array.from({ length: 28 }, (_, i) => i + 1)
 
 export default function AdminSettings() {
   const { appUser } = useAuth()
@@ -37,18 +39,22 @@ export default function AdminSettings() {
   })
 
   const [settings, setSettings] = useState({
-    currency: 'USD',
-    lateFeeEnabled: false,
-    lateFeePercent: 5,
-    lateFeeGraceDays: 5,
-    monthlyFee: 150,
-    enrollmentFee: 300,
+    currency: 'USD', lateFeeEnabled: false, lateFeePercent: 5,
+    lateFeeGraceDays: 5, monthlyFee: 150, enrollmentFee: 300,
     currentSchoolYear: '2024-2025',
+  })
+
+  const [billing, setBilling] = useState({
+    enabled: false, billingDay: 1, dueDay: 15,
+    amount: 150, currency: 'USD', description: 'Mensualidad',
   })
 
   const [paymentMethods, setPaymentMethods] = useState<any[]>([])
   const [showAddMethod, setShowAddMethod] = useState(false)
-  const [newMethod, setNewMethod] = useState({ type: 'pago_movil', banco: '', telefono: '', cedula: '', cuenta: '', titular: '', cedula_rif: '', email_telefono: '', instrucciones: '' })
+  const [newMethod, setNewMethod] = useState({
+    type: 'pago_movil', banco: '', telefono: '', cedula: '',
+    cuenta: '', titular: '', cedula_rif: '', email_telefono: '', instrucciones: '',
+  })
 
   useEffect(() => {
     if (school) {
@@ -61,6 +67,8 @@ export default function AdminSettings() {
         enrollmentFee:     school.settings?.enrollmentFee || 0,
         currentSchoolYear: school.settings?.currentSchoolYear || '2024-2025',
       })
+      const b = (school as any).billingConfig
+      if (b) setBilling(b)
       setPaymentMethods((school as any).paymentMethods || [])
     }
   }, [school])
@@ -70,6 +78,14 @@ export default function AdminSettings() {
     onSuccess: () => { toast.success('Configuración guardada'); qc.invalidateQueries({ queryKey: ['school'] }) },
     onError: () => toast.error('Error al guardar'),
   })
+
+  const saveBilling = async () => {
+    try {
+      await updateDoc(doc(db, 'schools', schoolId), { billingConfig: billing })
+      toast.success('Facturación automática guardada')
+      qc.invalidateQueries({ queryKey: ['school'] })
+    } catch { toast.error('Error al guardar facturación') }
+  }
 
   const savePaymentMethods = async (methods: any[]) => {
     try {
@@ -83,7 +99,9 @@ export default function AdminSettings() {
     const methodType = PAYMENT_METHOD_TYPES.find(m => m.value === newMethod.type)
     if (!methodType) return
     const data: any = { type: newMethod.type, label: methodType.label, icon: methodType.icon }
-    methodType.fields.forEach(f => { if (newMethod[f as keyof typeof newMethod]) data[f] = newMethod[f as keyof typeof newMethod] })
+    methodType.fields.forEach(f => {
+      if (newMethod[f as keyof typeof newMethod]) data[f] = newMethod[f as keyof typeof newMethod]
+    })
     const updated = [...paymentMethods, data]
     setPaymentMethods(updated)
     savePaymentMethods(updated)
@@ -103,6 +121,11 @@ export default function AdminSettings() {
     setSettings(s => ({ ...s, [k]: val }))
   }
 
+  const setBill = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    const val = e.target.type === 'number' ? parseFloat(e.target.value) : e.target.value
+    setBilling(b => ({ ...b, [k]: val }))
+  }
+
   const setNew = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setNewMethod(m => ({ ...m, [k]: e.target.value }))
 
@@ -111,6 +134,83 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-bold text-slate-800">Configuración</h1>
+
+      {/* Facturación automática */}
+      <div className="bg-white rounded-xl border border-slate-200">
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Calendar size={20} className="text-blue-500"/>
+            <div>
+              <h2 className="font-semibold text-slate-700">Facturación automática mensual</h2>
+              <p className="text-xs text-slate-400 mt-0.5">Genera cobros de mensualidad automáticamente cada mes</p>
+            </div>
+          </div>
+          <button onClick={() => setBilling(b => ({ ...b, enabled: !b.enabled }))}
+            className="text-slate-400 hover:text-blue-600 transition-colors">
+            {billing.enabled
+              ? <ToggleRight size={32} className="text-blue-600"/>
+              : <ToggleLeft size={32}/>}
+          </button>
+        </div>
+
+        {billing.enabled ? (
+          <div className="px-6 py-4 space-y-4">
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
+              <p className="text-xs text-blue-700">
+                El sistema generará automáticamente el cobro mensual para todos los estudiantes
+                a partir del día <strong>{billing.billingDay}</strong> de cada mes,
+                con vencimiento el día <strong>{billing.dueDay}</strong>.
+              </p>
+            </div>
+            <div>
+              <label className="text-sm font-medium text-slate-700 block mb-1.5">Descripción del cobro</label>
+              <input className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ej: Mensualidad" value={billing.description} onChange={setBill('description')}/>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Monto</label>
+                <input type="number" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={billing.amount} onChange={setBill('amount')}/>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Moneda</label>
+                <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={billing.currency} onChange={setBill('currency')}>
+                  <option value="USD">USD — Dólar</option>
+                  <option value="VES">VES — Bolívar</option>
+                </select>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Día de generación</label>
+                <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={billing.billingDay} onChange={setBill('billingDay')}>
+                  {DAYS.map(d => <option key={d} value={d}>Día {d}</option>)}
+                </select>
+                <p className="text-xs text-slate-400 mt-1">A partir de este día se genera el cobro</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-slate-700 block mb-1.5">Día de vencimiento</label>
+                <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={billing.dueDay} onChange={setBill('dueDay')}>
+                  {DAYS.map(d => <option key={d} value={d}>Día {d}</option>)}
+                </select>
+                <p className="text-xs text-slate-400 mt-1">Fecha límite de pago</p>
+              </div>
+            </div>
+            <button onClick={saveBilling}
+              className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700">
+              <Save size={14}/> Guardar facturación
+            </button>
+          </div>
+        ) : (
+          <div className="px-6 py-4 text-center text-slate-400">
+            <p className="text-sm">Activa el interruptor para configurar la facturación automática</p>
+          </div>
+        )}
+      </div>
 
       {/* Métodos de pago */}
       <div className="bg-white rounded-xl border border-slate-200">
@@ -124,12 +224,10 @@ export default function AdminSettings() {
             <Plus size={14}/> Agregar
           </button>
         </div>
-
         {paymentMethods.length === 0 ? (
           <div className="px-6 py-8 text-center text-slate-400">
             <CreditCard size={32} className="mx-auto mb-2 opacity-30"/>
             <p className="text-sm">No hay métodos de pago configurados</p>
-            <p className="text-xs mt-1">Agrega Pago Móvil, Transferencia, Zelle o Efectivo</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -185,8 +283,14 @@ export default function AdminSettings() {
               ))}
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowAddMethod(false)} className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm hover:bg-slate-50">Cancelar</button>
-              <button onClick={addMethod} className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm hover:bg-blue-700 font-medium">Guardar método</button>
+              <button onClick={() => setShowAddMethod(false)}
+                className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button onClick={addMethod}
+                className="flex-1 bg-blue-600 text-white py-2.5 rounded-xl text-sm hover:bg-blue-700 font-medium">
+                Guardar método
+              </button>
             </div>
           </div>
         </div>
