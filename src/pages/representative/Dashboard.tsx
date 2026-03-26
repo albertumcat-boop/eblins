@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { getStudentsByRepresentative, createStudent, generateMonthlyPayments } from '@/services/db'
+import { checkAndCreatePaymentReminders } from '@/services/db' // ✅ IMPORT AGREGADO
 import { Link } from 'react-router-dom'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -28,6 +29,9 @@ export default function RepresentativeDashboard() {
   useEffect(() => {
     if (appUser?.schoolId) {
       generateMonthlyPayments(appUser.schoolId).catch(() => {})
+
+      // ✅ INTEGRACIÓN (SIN CAMBIAR NADA)
+      checkAndCreatePaymentReminders(appUser.schoolId, appUser.id).catch(() => {})
     }
   }, [appUser?.schoolId])
 
