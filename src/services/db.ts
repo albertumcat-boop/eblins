@@ -3,6 +3,8 @@ import {
   query, where, orderBy, limit, serverTimestamp, onSnapshot, increment,
 } from 'firebase/firestore'
 import { db } from './firebase'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import type { AppUser, Student, Payment, PaymentInstallment, Message, Announcement, Notification, School } from '@/types'
 
 const fromDoc = <T>(snap: any): T => ({ id: snap.id, ...snap.data() } as T)
@@ -124,3 +126,51 @@ export const subscribeToNotifications = (userId: string, cb: (n: Notification[])
   onSnapshot(query(collection(db, 'notifications'),
     where('userId', '==', userId), where('read', '==', false), orderBy('createdAt', 'desc')),
     s => cb(s.docs.map(d => fromDoc<Notification>(d))))
+
+export const generateMonthlyPayments = async (schoolId: string) => {
+  const now = new Date()
+  const monthLabel = format(now, 'MMMM yyyy', { locale: es })
+  const monthKey = format(now, 'yyyy-MM')
+
+  const school = await getSchool(schoolId)
+  if (!school) return
+  const billing = (school as any).billingConfig
+  if (!billing?.enabled) return
+
+  const today = now.getDate()
+  if (today < billing.billingDay) return
+
+  const students = await getStudentsBySchool(schoolId)
+
+  for (const student of students) {
+    const q = query(
+      collection(db, 'payments'),
+      where('studentId', '==', student.id),
+      where('monthKey', '==', monthKey),
+      where('type', '==', 'monthly')
+    )
+    const existing = await getDocs(q)
+    if (!existing.empty) continue
+
+    const rep = await getDoc(doc(db, 'users', student.representativeId))
+    if (!rep.exists()) continue
+
+    await addDoc(collection(db, 'payments'), {
+      studentId:        student.id,
+      schoolId,
+      representativeId: student.representativeId,
+      type:             'monthly',
+      description:      `${billing.description || 'Mensualidad'} ${monthLabel}`,
+      monthLabel:       `${billing.description || 'Mensualidad'} ${monthLabel}`,
+      monthKey,
+      amount:           billing.amount,
+      amountPaid:       0,
+      balance:          billing.amount,
+      currency:         billing.currency || 'USD',
+      status:           'pending',
+      isFractioned:     false,
+      dueDate:          new Date(now.getFullYear(), now.getMonth(), billing.dueDay || 15),
+      createdAt:        serverTimestamp(),
+    })
+  }
+}
