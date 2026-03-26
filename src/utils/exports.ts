@@ -76,3 +76,44 @@ export function exportPaymentsExcel(payments: Payment[], studentName: string) {
   XLSX.utils.book_append_sheet(wb, ws, 'Pagos')
   XLSX.writeFile(wb, `pagos-${studentName.replace(/\s/g, '_')}.xlsx`)
 }
+export function generatePaymentReceiptPDF(payment: any, studentName: string, schoolName: string) {
+  const doc = new jsPDF()
+  const toDate = (v: any): Date => v?.toDate ? v.toDate() : new Date(v)
+
+  doc.setFillColor(30, 64, 175)
+  doc.rect(0, 0, 210, 35, 'F')
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(20)
+  doc.text('RECIBO DE PAGO', 14, 20)
+  doc.setFontSize(10)
+  doc.text(schoolName, 14, 28)
+
+  doc.setTextColor(30, 30, 30)
+  doc.setFontSize(11)
+  doc.text(`N° de recibo: ${payment.id?.slice(-8).toUpperCase()}`, 14, 50)
+  doc.text(`Fecha de aprobación: ${format(new Date(), "d 'de' MMMM yyyy", { locale: es })}`, 14, 58)
+
+  autoTable(doc, {
+    head: [['Campo', 'Detalle']],
+    body: [
+      ['Estudiante', studentName],
+      ['Concepto', payment.description || payment.monthLabel || '—'],
+      ['Tipo', payment.type === 'monthly' ? 'Mensualidad' : payment.type === 'enrollment' ? 'Inscripción' : 'Adicional'],
+      ['Monto pagado', `${payment.currency === 'VES' ? 'Bs. ' : '$ '}${(payment.amountPaid || payment.amount)?.toFixed(2)}`],
+      ['Moneda', payment.currency || 'USD'],
+      ['Método de pago', payment.paymentMethod || '—'],
+      ['Referencia', payment.reference ? `****${payment.reference}` : '—'],
+      ['Estado', 'APROBADO'],
+    ],
+    startY: 68,
+    headStyles: { fillColor: [30, 64, 175] },
+    alternateRowStyles: { fillColor: [248, 250, 252] },
+  })
+
+  const finalY = (doc as any).lastAutoTable.finalY + 15
+  doc.setFontSize(9)
+  doc.setTextColor(100, 100, 100)
+  doc.text('Este recibo es un comprobante oficial de pago generado automáticamente por EduFinance.', 14, finalY)
+
+  doc.save(`recibo-${studentName.replace(/\s/g, '_')}-${payment.id?.slice(-6)}.pdf`)
+}
