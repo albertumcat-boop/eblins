@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, CreditCard, Megaphone, MessageSquare, LogOut, Bell, Menu, X, User, BookOpen, CalendarCheck } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Megaphone, MessageSquare, MessagesSquare, LogOut, Bell, Menu, X, User, BookOpen, CalendarCheck } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToNotifications, markNotificationRead } from '@/services/db'
 import type { Notification } from '@/types'
@@ -10,6 +10,7 @@ const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Inicio', exact: true },
   { to: '/payments', icon: CreditCard, label: 'Pagos' },
   { to: '/announcements', icon: Megaphone, label: 'Anuncios' },
+  { to: '/chat', icon: MessagesSquare, label: 'Chat' },
   { to: '/messages', icon: MessageSquare, label: 'Mensajes' },
   { to: '/grades', icon: BookOpen, label: 'Boletín' },
   { to: '/attendance', icon: CalendarCheck, label: 'Asistencia' },
