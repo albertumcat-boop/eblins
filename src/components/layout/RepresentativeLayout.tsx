@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, CreditCard, Megaphone, MessageSquare, LogOut, Bell, Menu, X, User } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Megaphone, MessageSquare, LogOut, Bell, Menu, X, User, BookOpen } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToNotifications, markNotificationRead } from '@/services/db'
 import type { Notification } from '@/types'
@@ -12,6 +12,7 @@ const NAV = [
   { to: '/announcements', icon: Megaphone, label: 'Anuncios' },
   { to: '/messages', icon: MessageSquare, label: 'Mensajes' },
   { to: '/profile', icon: User, label: 'Mi Perfil' },
+  { to: '/grades', icon: BookOpen, label: 'Boletín' },
 ]
 
 export default function RepresentativeLayout() {
