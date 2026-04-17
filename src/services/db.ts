@@ -131,30 +131,22 @@ export const generateMonthlyPayments = async (schoolId: string) => {
   const now = new Date()
   const monthLabel = format(now, 'MMMM yyyy', { locale: es })
   const monthKey = format(now, 'yyyy-MM')
-
   const school = await getSchool(schoolId)
   if (!school) return
   const billing = (school as any).billingConfig
   if (!billing?.enabled) return
-
   const today = now.getDate()
   if (today < billing.billingDay) return
-
   const students = await getStudentsBySchool(schoolId)
-
   for (const student of students) {
-    const q = query(
-      collection(db, 'payments'),
+    const q = query(collection(db, 'payments'),
       where('studentId', '==', student.id),
       where('monthKey', '==', monthKey),
-      where('type', '==', 'monthly')
-    )
+      where('type', '==', 'monthly'))
     const existing = await getDocs(q)
     if (!existing.empty) continue
-
     const rep = await getDoc(doc(db, 'users', student.representativeId))
     if (!rep.exists()) continue
-
     await addDoc(collection(db, 'payments'), {
       studentId:        student.id,
       schoolId,
@@ -172,5 +164,42 @@ export const generateMonthlyPayments = async (schoolId: string) => {
       dueDate:          new Date(now.getFullYear(), now.getMonth(), billing.dueDay || 15),
       createdAt:        serverTimestamp(),
     })
+  }
+}
+
+export const checkAndCreatePaymentReminders = async (schoolId: string, userId: string) => {
+  const now = new Date()
+  const in3days = new Date(now.getTime() + 3 * 24 * 60 * 60 * 1000)
+  const q = query(collection(db, 'payments'),
+    where('schoolId', '==', schoolId),
+    where('representativeId', '==', userId),
+    where('status', '==', 'pending'))
+  const payments = await getDocs(q)
+  for (const p of payments.docs) {
+    const data = p.data()
+    if (!data.dueDate) continue
+    const due = data.dueDate.toDate ? data.dueDate.toDate() : new Date(data.dueDate)
+    if (due <= in3days && due >= now) {
+      const existingQ = query(collection(db, 'notifications'),
+        where('relatedId', '==', p.id), where('type', '==', 'payment'), where('userId', '==', userId))
+      const existing = await getDocs(existingQ)
+      if (!existing.empty) continue
+      await addDoc(collection(db, 'notifications'), {
+        userId, schoolId, title: '⚠️ Pago próximo a vencer',
+        body: `El pago "${data.description || data.monthLabel}" vence el ${format(due, "d 'de' MMMM", { locale: es })}`,
+        type: 'payment', relatedId: p.id, read: false, createdAt: serverTimestamp(),
+      })
+    }
+    if (due < now) {
+      const existingQ = query(collection(db, 'notifications'),
+        where('relatedId', '==', p.id), where('title', '==', '🔴 Pago vencido'), where('userId', '==', userId))
+      const existing = await getDocs(existingQ)
+      if (!existing.empty) continue
+      await addDoc(collection(db, 'notifications'), {
+        userId, schoolId, title: '🔴 Pago vencido',
+        body: `El pago "${data.description || data.monthLabel}" venció el ${format(due, "d 'de' MMMM", { locale: es })}`,
+        type: 'payment', relatedId: p.id, read: false, createdAt: serverTimestamp(),
+      })
+    }
   }
 }
