@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { LayoutDashboard, Megaphone, GraduationCap, LogOut, Menu, X, BookOpen, CalendarCheck } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import clsx from 'clsx'
+import { LayoutDashboard, Megaphone, GraduationCap, LogOut, Menu, X, BookOpen, CalendarCheck, ShieldAlert } from 'lucide-react'
 
 const NAV = [
   { to: '/', icon: LayoutDashboard, label: 'Inicio', exact: true },
@@ -10,6 +11,7 @@ const NAV = [
   { to: '/students', icon: GraduationCap, label: 'Estudiantes' },
   { to: '/grades', icon: BookOpen, label: 'Notas' },
   { to: '/attendance', icon: CalendarCheck, label: 'Asistencia' },
+  { to: '/behavior', icon: ShieldAlert, label: 'Conducta' },
 ]
 
 export default function TeacherLayout() {
