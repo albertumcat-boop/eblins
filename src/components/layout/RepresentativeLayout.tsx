@@ -16,6 +16,7 @@ const NAV = [
   { to: '/attendance', icon: CalendarCheck, label: 'Asistencia' },
   { to: '/profile', icon: User, label: 'Mi Perfil' },
   { to: '/behavior', icon: ShieldAlert, label: 'Conducta' },
+  { to: '/reportcards', icon: FileText, label: 'Boletas' },
 ]
 export default function RepresentativeLayout() {
   const { appUser, logout } = useAuth()
