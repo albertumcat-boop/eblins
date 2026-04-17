@@ -30,6 +30,8 @@ import RepAttendance from '@/pages/representative/Attendance'
 import Chat from '@/pages/Chat'
 import TeacherBehavior from '@/pages/teacher/Behavior'
 import RepBehavior from '@/pages/representative/Behavior'
+import TeacherReportCards from '@/pages/teacher/ReportCards'
+import RepReportCards from '@/pages/representative/ReportCards'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
@@ -79,6 +81,7 @@ function AppRoutes() {
         <Route path="attendance" element={<RepAttendance />} />
         <Route path="chat" element={<Chat />} />
         <Route path="behavior" element={<RepBehavior />} />
+<Route path="reportcards" element={<RepReportCards />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
@@ -93,6 +96,7 @@ function AppRoutes() {
         <Route path="grades" element={<TeacherGrades />} />
         <Route path="attendance" element={<TeacherAttendance />} />
         <Route path="behavior" element={<TeacherBehavior />} />
+<Route path="reportcards" element={<TeacherReportCards />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
