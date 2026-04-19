@@ -14,36 +14,35 @@ import AdminUsers from '@/pages/admin/Users'
 import AdminReports from '@/pages/admin/Reports'
 import AdminMessages from '@/pages/admin/Messages'
 import AdminSettings from '@/pages/admin/Settings'
+import AdminAuditLog from '@/pages/admin/AuditLog'
 import RepDashboard from '@/pages/representative/Dashboard'
 import RepPayments from '@/pages/representative/Payments'
 import RepAnnouncements from '@/pages/representative/Announcements'
 import RepMessages from '@/pages/representative/Messages'
 import RepStudentDetail from '@/pages/representative/StudentDetail'
 import RepProfile from '@/pages/representative/Profile'
+import RepGrades from '@/pages/representative/Grades'
+import RepAttendance from '@/pages/representative/Attendance'
+import RepBehavior from '@/pages/representative/Behavior'
+import RepReportCards from '@/pages/representative/ReportCards'
 import TeacherDashboard from '@/pages/teacher/Dashboard'
 import TeacherAnnouncements from '@/pages/teacher/Announcements'
 import TeacherStudents from '@/pages/teacher/Students'
 import TeacherGrades from '@/pages/teacher/Grades'
-import RepGrades from '@/pages/representative/Grades'
 import TeacherAttendance from '@/pages/teacher/Attendance'
-import RepAttendance from '@/pages/representative/Attendance'
-import Chat from '@/pages/Chat'
 import TeacherBehavior from '@/pages/teacher/Behavior'
-import RepBehavior from '@/pages/representative/Behavior'
 import TeacherReportCards from '@/pages/teacher/ReportCards'
-import RepReportCards from '@/pages/representative/ReportCards'
+import Chat from '@/pages/Chat'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
 function AppRoutes() {
   const { appUser, loading } = useAuth()
-
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
-      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"/>
     </div>
   )
-
   if (!appUser) return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
@@ -51,7 +50,6 @@ function AppRoutes() {
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )
-
   if (appUser.role === 'admin') return (
     <Routes>
       <Route path="/" element={<AdminLayout />}>
@@ -63,11 +61,11 @@ function AppRoutes() {
         <Route path="messages" element={<AdminMessages />} />
         <Route path="settings" element={<AdminSettings />} />
         <Route path="chat" element={<Chat />} />
+        <Route path="audit" element={<AdminAuditLog />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
-
   if (appUser.role === 'representative') return (
     <Routes>
       <Route path="/" element={<RepresentativeLayout />}>
@@ -79,14 +77,13 @@ function AppRoutes() {
         <Route path="profile" element={<RepProfile />} />
         <Route path="grades" element={<RepGrades />} />
         <Route path="attendance" element={<RepAttendance />} />
-        <Route path="chat" element={<Chat />} />
         <Route path="behavior" element={<RepBehavior />} />
-<Route path="reportcards" element={<RepReportCards />} />
+        <Route path="reportcards" element={<RepReportCards />} />
+        <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
-
   return (
     <Routes>
       <Route path="/" element={<TeacherLayout />}>
@@ -96,7 +93,7 @@ function AppRoutes() {
         <Route path="grades" element={<TeacherGrades />} />
         <Route path="attendance" element={<TeacherAttendance />} />
         <Route path="behavior" element={<TeacherBehavior />} />
-<Route path="reportcards" element={<TeacherReportCards />} />
+        <Route path="reportcards" element={<TeacherReportCards />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
