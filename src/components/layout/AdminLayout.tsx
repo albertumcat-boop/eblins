@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, CreditCard, Users, GraduationCap, BarChart3, MessageSquare, MessagesSquare, Settings, LogOut, Bell, Menu, X } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Users, GraduationCap, BarChart3, MessageSquare, MessagesSquare, Settings, LogOut, Bell, Menu, X, Shield } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToNotifications } from '@/services/db'
 import type { Notification } from '@/types'
@@ -14,6 +14,7 @@ const NAV = [
   { to: '/reports', icon: BarChart3, label: 'Reportes' },
   { to: '/chat', icon: MessagesSquare, label: 'Chat' },
   { to: '/messages', icon: MessageSquare, label: 'Mensajes' },
+  { to: '/audit', icon: Shield, label: 'Actividad' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
 ]
 
@@ -23,16 +24,12 @@ export default function AdminLayout() {
   const [open, setOpen] = useState(false)
   const [notifs, setNotifs] = useState<Notification[]>([])
   const [showN, setShowN] = useState(false)
-
   useEffect(() => { if (appUser) return subscribeToNotifications(appUser.id, setNotifs) }, [appUser?.id])
   const handleLogout = async () => { await logout(); navigate('/login') }
 
   return (
     <div className="min-h-screen bg-slate-50 flex">
-      <aside className={clsx(
-        'fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-200',
-        open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-      )}>
+      <aside className={clsx('fixed inset-y-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-200', open ? 'translate-x-0' : '-translate-x-full lg:translate-x-0')}>
         <div className="flex items-center gap-3 px-6 py-5 border-b border-slate-700">
           <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center font-bold text-sm">EF</div>
           <div><p className="font-semibold text-sm">EduFinance</p><p className="text-xs text-slate-400">Administrador</p></div>
@@ -50,13 +47,8 @@ export default function AdminLayout() {
         </nav>
         <div className="px-3 py-4 border-t border-slate-700">
           <div className="flex items-center gap-3 px-3 py-2">
-            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold">
-              {appUser?.displayName?.[0]?.toUpperCase()}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">{appUser?.displayName}</p>
-              <p className="text-xs text-slate-400 truncate">{appUser?.email}</p>
-            </div>
+            <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-xs font-bold">{appUser?.displayName?.[0]?.toUpperCase()}</div>
+            <div className="flex-1 min-w-0"><p className="text-sm font-medium text-white truncate">{appUser?.displayName}</p><p className="text-xs text-slate-400 truncate">{appUser?.email}</p></div>
             <button onClick={handleLogout} className="text-slate-400 hover:text-red-400"><LogOut size={16}/></button>
           </div>
         </div>
@@ -68,20 +60,13 @@ export default function AdminLayout() {
           <div className="flex-1"/>
           <div className="relative">
             <button className="relative p-2 text-slate-500 hover:bg-slate-100 rounded-lg" onClick={() => setShowN(!showN)}>
-              <Bell size={20}/>
-              {notifs.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"/>}
+              <Bell size={20}/>{notifs.length > 0 && <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full"/>}
             </button>
             {showN && (
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-slate-200 z-50 overflow-hidden">
                 <div className="px-4 py-3 border-b border-slate-100 text-sm font-semibold">Notificaciones</div>
-                {notifs.length === 0
-                  ? <p className="text-sm text-slate-400 text-center py-6">Sin notificaciones</p>
-                  : notifs.map(n => (
-                    <div key={n.id} className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50">
-                      <p className="text-sm font-medium text-slate-800">{n.title}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{n.body}</p>
-                    </div>
-                  ))}
+                {notifs.length === 0 ? <p className="text-sm text-slate-400 text-center py-6">Sin notificaciones</p>
+                : notifs.map(n => (<div key={n.id} className="px-4 py-3 hover:bg-slate-50 border-b border-slate-50"><p className="text-sm font-medium text-slate-800">{n.title}</p><p className="text-xs text-slate-500 mt-0.5">{n.body}</p></div>))}
               </div>
             )}
           </div>
