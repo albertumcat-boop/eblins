@@ -33,6 +33,7 @@ import TeacherAttendance from '@/pages/teacher/Attendance'
 import TeacherBehavior from '@/pages/teacher/Behavior'
 import TeacherReportCards from '@/pages/teacher/ReportCards'
 import Chat from '@/pages/Chat'
+import Landing from '@/pages/Landing'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
@@ -44,12 +45,13 @@ function AppRoutes() {
     </div>
   )
   if (!appUser) return (
-    <Routes>
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
-      <Route path="*" element={<Navigate to="/login" replace />} />
-    </Routes>
-  )
+  <Routes>
+    <Route path="/" element={<Landing />} />
+    <Route path="/login" element={<LoginPage />} />
+    <Route path="/register" element={<RegisterPage />} />
+    <Route path="*" element={<Navigate to="/" replace />} />
+  </Routes>
+)
   if (appUser.role === 'admin') return (
     <Routes>
       <Route path="/" element={<AdminLayout />}>
