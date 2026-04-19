@@ -203,3 +203,17 @@ export const checkAndCreatePaymentReminders = async (schoolId: string, userId: s
     }
   }
 }
+
+export const createAuditLog = async (data: {
+  schoolId: string
+  action: string
+  description: string
+  performedBy: string
+  performedByName: string
+  metadata?: any
+}) => {
+  await addDoc(collection(db, 'auditLogs'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  })
+}
