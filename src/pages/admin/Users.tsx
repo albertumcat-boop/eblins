@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
-import { getUsersBySchool, updateUserRole } from '@/services/db'
+import { getUsersBySchool, updateUserRole, createAuditLog } from '@/services/db'
 import toast from 'react-hot-toast'
 import { Search, Shield, User, GraduationCap } from 'lucide-react'
 import { format } from 'date-fns'
@@ -23,10 +23,27 @@ export default function AdminUsers() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
 
-  const { data: users = [], isLoading } = useQuery({ queryKey: ['users', schoolId], queryFn: () => getUsersBySchool(schoolId), enabled: !!schoolId })
+  const { data: users = [], isLoading } = useQuery({
+    queryKey: ['users', schoolId],
+    queryFn: () => getUsersBySchool(schoolId),
+    enabled: !!schoolId
+  })
+
   const updateMut = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: string }) => updateUserRole(userId, role, schoolId),
-    onSuccess: () => { toast.success('Rol actualizado'); qc.invalidateQueries({ queryKey: ['users'] }) },
+    onSuccess: async (_, { userId, role }) => {
+      const u = users.find(x => x.id === userId)
+      await createAuditLog({
+        schoolId,
+        action: 'role_changed',
+        description: `Rol de ${u?.displayName || userId} cambiado a ${role}`,
+        performedBy: appUser!.id,
+        performedByName: appUser!.displayName,
+        metadata: { userId, newRole: role },
+      })
+      toast.success('Rol actualizado')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
     onError: () => toast.error('Error al actualizar rol'),
   })
 
