@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, CreditCard, Users, GraduationCap, BarChart3, MessageSquare, MessagesSquare, Settings, LogOut, Bell, Menu, X, Shield } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Users, GraduationCap, BarChart3, MessageSquare, MessagesSquare, Settings, LogOut, Bell, Menu, X, Shield, CalendarDays, Video, ShoppingBag, Clock } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToNotifications } from '@/services/db'
 import type { Notification } from '@/types'
@@ -12,6 +12,10 @@ const NAV = [
   { to: '/students', icon: GraduationCap, label: 'Estudiantes' },
   { to: '/users', icon: Users, label: 'Usuarios' },
   { to: '/reports', icon: BarChart3, label: 'Reportes' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendario' },
+  { to: '/meetings', icon: Video, label: 'Asambleas' },
+  { to: '/schedules', icon: Clock, label: 'Horarios' },
+  { to: '/supplies', icon: ShoppingBag, label: 'Útiles' },
   { to: '/chat', icon: MessagesSquare, label: 'Chat' },
   { to: '/messages', icon: MessageSquare, label: 'Mensajes' },
   { to: '/audit', icon: Shield, label: 'Actividad' },
@@ -35,13 +39,13 @@ export default function AdminLayout() {
           <div><p className="font-semibold text-sm">EduFinance</p><p className="text-xs text-slate-400">Administrador</p></div>
           <button className="ml-auto lg:hidden text-slate-400" onClick={() => setOpen(false)}><X size={18}/></button>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           {NAV.map(({ to, icon: Icon, label, exact }) => (
             <NavLink key={to} to={to} end={exact} className={({ isActive }) => clsx(
-              'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+              'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
               isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white'
             )}>
-              <Icon size={18}/>{label}
+              <Icon size={16}/>{label}
             </NavLink>
           ))}
         </nav>
