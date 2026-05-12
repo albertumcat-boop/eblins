@@ -5,7 +5,7 @@ import {
 import { db } from './firebase'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import type { AppUser, Student, Payment, PaymentInstallment, Message, Announcement, Notification, School } from '@/types'
+import type { AppUser, Student, Payment, Message, Announcement, Notification, School } from '@/types'
 
 const fromDoc = <T>(snap: any): T => ({ id: snap.id, ...snap.data() } as T)
 
@@ -148,21 +148,15 @@ export const generateMonthlyPayments = async (schoolId: string) => {
     const rep = await getDoc(doc(db, 'users', student.representativeId))
     if (!rep.exists()) continue
     await addDoc(collection(db, 'payments'), {
-      studentId:        student.id,
-      schoolId,
+      studentId: student.id, schoolId,
       representativeId: student.representativeId,
-      type:             'monthly',
-      description:      `${billing.description || 'Mensualidad'} ${monthLabel}`,
-      monthLabel:       `${billing.description || 'Mensualidad'} ${monthLabel}`,
-      monthKey,
-      amount:           billing.amount,
-      amountPaid:       0,
-      balance:          billing.amount,
-      currency:         billing.currency || 'USD',
-      status:           'pending',
-      isFractioned:     false,
-      dueDate:          new Date(now.getFullYear(), now.getMonth(), billing.dueDay || 15),
-      createdAt:        serverTimestamp(),
+      type: 'monthly',
+      description: `${billing.description || 'Mensualidad'} ${monthLabel}`,
+      monthLabel: `${billing.description || 'Mensualidad'} ${monthLabel}`,
+      monthKey, amount: billing.amount, amountPaid: 0, balance: billing.amount,
+      currency: billing.currency || 'USD', status: 'pending', isFractioned: false,
+      dueDate: new Date(now.getFullYear(), now.getMonth(), billing.dueDay || 15),
+      createdAt: serverTimestamp(),
     })
   }
 }
@@ -205,15 +199,85 @@ export const checkAndCreatePaymentReminders = async (schoolId: string, userId: s
 }
 
 export const createAuditLog = async (data: {
-  schoolId: string
-  action: string
-  description: string
-  performedBy: string
-  performedByName: string
-  metadata?: any
+  schoolId: string; action: string; description: string
+  performedBy: string; performedByName: string; metadata?: any
 }) => {
-  await addDoc(collection(db, 'auditLogs'), {
-    ...data,
-    createdAt: serverTimestamp(),
-  })
+  await addDoc(collection(db, 'auditLogs'), { ...data, createdAt: serverTimestamp() })
 }
+
+// ── EVENTOS / CALENDARIO ──────────────────────────────────────────
+export const createEvent = (data: any) =>
+  addDoc(collection(db, 'events'), { ...data, createdAt: serverTimestamp() })
+export const getEventsBySchool = async (schoolId: string) => {
+  const q = query(collection(db, 'events'), where('schoolId', '==', schoolId), orderBy('date', 'asc'))
+  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+}
+export const deleteEvent = (id: string) => deleteDoc(doc(db, 'events', id))
+
+// ── TAREAS ────────────────────────────────────────────────────────
+export const createTask = (data: any) =>
+  addDoc(collection(db, 'tasks'), { ...data, createdAt: serverTimestamp() })
+export const getTasksBySchool = async (schoolId: string) => {
+  const q = query(collection(db, 'tasks'), where('schoolId', '==', schoolId), orderBy('dueDate', 'asc'))
+  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+}
+export const getTasksByGrade = async (schoolId: string, grade: string, section: string) => {
+  const q = query(collection(db, 'tasks'),
+    where('schoolId', '==', schoolId),
+    where('grade', '==', grade),
+    where('section', '==', section),
+    orderBy('dueDate', 'asc'))
+  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+}
+export const deleteTask = (id: string) => deleteDoc(doc(db, 'tasks', id))
+
+// ── HORARIOS ──────────────────────────────────────────────────────
+export const saveSchedule = async (schoolId: string, grade: string, section: string, content: string) => {
+  const q = query(collection(db, 'schedules'),
+    where('schoolId', '==', schoolId), where('grade', '==', grade), where('section', '==', section))
+  const existing = await getDocs(q)
+  if (!existing.empty) {
+    await updateDoc(doc(db, 'schedules', existing.docs[0].id), { content, updatedAt: serverTimestamp() })
+  } else {
+    await addDoc(collection(db, 'schedules'), { schoolId, grade, section, content, createdAt: serverTimestamp() })
+  }
+}
+export const getSchedule = async (schoolId: string, grade: string, section: string) => {
+  const q = query(collection(db, 'schedules'),
+    where('schoolId', '==', schoolId), where('grade', '==', grade), where('section', '==', section))
+  const snap = await getDocs(q)
+  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }
+}
+export const getAllSchedules = async (schoolId: string) => {
+  const q = query(collection(db, 'schedules'), where('schoolId', '==', schoolId))
+  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+// ── ÚTILES ESCOLARES ──────────────────────────────────────────────
+export const saveSupplies = async (schoolId: string, grade: string, data: any) => {
+  const q = query(collection(db, 'supplies'), where('schoolId', '==', schoolId), where('grade', '==', grade))
+  const existing = await getDocs(q)
+  if (!existing.empty) {
+    await updateDoc(doc(db, 'supplies', existing.docs[0].id), { ...data, updatedAt: serverTimestamp() })
+  } else {
+    await addDoc(collection(db, 'supplies'), { schoolId, grade, ...data, createdAt: serverTimestamp() })
+  }
+}
+export const getSuppliesByGrade = async (schoolId: string, grade: string) => {
+  const q = query(collection(db, 'supplies'), where('schoolId', '==', schoolId), where('grade', '==', grade))
+  const snap = await getDocs(q)
+  return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }
+}
+export const getAllSupplies = async (schoolId: string) => {
+  const q = query(collection(db, 'supplies'), where('schoolId', '==', schoolId))
+  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+}
+
+// ── ASAMBLEAS VIRTUALES ───────────────────────────────────────────
+export const createMeeting = (data: any) =>
+  addDoc(collection(db, 'meetings'), { ...data, createdAt: serverTimestamp() })
+export const getMeetingsBySchool = async (schoolId: string) => {
+  const q = query(collection(db, 'meetings'), where('schoolId', '==', schoolId), orderBy('date', 'desc'))
+  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+}
+export const deleteMeeting = (id: string) => deleteDoc(doc(db, 'meetings', id))
