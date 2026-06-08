@@ -22,6 +22,7 @@ import AdminSchedules from '@/pages/admin/Schedules'
 import AdminSupplies from '@/pages/admin/Supplies'
 import AdminImport from '@/pages/admin/Import'
 import AdminStripeConfig from '@/pages/admin/StripeConfig'
+import AdminEmailQueue from '@/pages/admin/EmailQueue'
 import RepDashboard from '@/pages/representative/Dashboard'
 import RepPayments from '@/pages/representative/Payments'
 import RepAnnouncements from '@/pages/representative/Announcements'
@@ -84,6 +85,7 @@ function AppRoutes() {
         <Route path="supplies" element={<AdminSupplies />} />
         <Route path="import" element={<AdminImport />} />
         <Route path="stripe-config" element={<AdminStripeConfig />} />
+        <Route path="email-queue" element={<AdminEmailQueue />} />
         <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

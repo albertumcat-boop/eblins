@@ -1,6 +1,6 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { LayoutDashboard, CreditCard, Users, GraduationCap, BarChart3, MessageSquare, MessagesSquare, Settings, LogOut, Bell, Menu, X, Shield, CalendarDays, Video, ShoppingBag, Clock, Upload } from 'lucide-react'
+import { LayoutDashboard, CreditCard, Users, GraduationCap, BarChart3, MessageSquare, MessagesSquare, Settings, LogOut, Bell, Menu, X, Shield, CalendarDays, Video, ShoppingBag, Clock, Upload, Mail } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToNotifications } from '@/services/db'
 import type { Notification } from '@/types'
@@ -19,6 +19,7 @@ const NAV = [
   { to: '/chat', icon: MessagesSquare, label: 'Chat' },
   { to: '/messages', icon: MessageSquare, label: 'Mensajes' },
   { to: '/import', icon: Upload, label: 'Importar' },
+  { to: '/email-queue', icon: Mail, label: 'Emails' },
   { to: '/audit', icon: Shield, label: 'Actividad' },
   { to: '/stripe-config', icon: CreditCard, label: 'Stripe' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
