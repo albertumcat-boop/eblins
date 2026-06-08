@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, LogIn, GraduationCap } from 'lucide-react'
+import { Eye, EyeOff, LogIn, Lock, Mail } from 'lucide-react'
 
 export default function LoginPage() {
   const { signIn, signInWithGoogle } = useAuth()
@@ -20,7 +20,12 @@ export default function LoginPage() {
       await signIn(email, password)
       navigate('/')
     } catch (err: any) {
-      toast.error(err.code === 'auth/invalid-credential' ? 'Correo o contraseña incorrectos' : 'Error al iniciar sesión')
+      const msg = err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password'
+        ? 'Correo o contraseña incorrectos'
+        : err.code === 'auth/too-many-requests'
+        ? 'Demasiados intentos. Intenta más tarde'
+        : 'Error al iniciar sesión'
+      toast.error(msg)
     } finally { setLoading(false) }
   }
 
@@ -32,49 +37,113 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-14 h-14 bg-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
-            <GraduationCap size={28} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-slate-800">EduFinance</h1>
-          <p className="text-slate-500 text-sm mt-1">Sistema de gestión financiera escolar</p>
+    <div style={{
+      minHeight: '100vh', background: '#050d1a', display: 'flex',
+      alignItems: 'center', justifyContent: 'center', padding: '24px',
+      fontFamily: "'Sora', sans-serif",
+    }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&display=swap');
+        .auth-input {
+          width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+          border-radius: 14px; padding: 14px 16px 14px 44px; color: #e8f0ff; font-size: 14px;
+          outline: none; transition: border-color .2s, background .2s; font-family: 'Sora', sans-serif;
+        }
+        .auth-input::placeholder { color: #4a6080; }
+        .auth-input:focus { border-color: #1d6ff4; background: rgba(29,111,244,0.05); }
+        .auth-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 24px; }
+        @keyframes fadeUp { from{opacity:0;transform:translateY(20px);}to{opacity:1;transform:translateY(0);} }
+        .fade-up { animation: fadeUp .5s ease both; }
+      `}</style>
+
+      <div style={{ width: '100%', maxWidth: '420px' }}>
+        {/* Logo */}
+        <div className="fade-up" style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{
+            width: '56px', height: '56px', borderRadius: '16px',
+            background: 'linear-gradient(135deg, #1d6ff4, #06c8f0)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 16px', fontWeight: 800, color: '#fff', fontSize: '18px',
+            boxShadow: '0 0 40px rgba(29,111,244,0.4)',
+          }}>EF</div>
+          <h1 style={{ fontSize: '22px', fontWeight: 800, color: '#e8f0ff', margin: 0 }}>EduFinance</h1>
+          <p style={{ color: '#6b8ab8', fontSize: '14px', marginTop: '6px' }}>Bienvenido de vuelta</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-          <h2 className="text-xl font-bold text-slate-800 mb-6">Iniciar sesión</h2>
-          <form onSubmit={handleSubmit} className="space-y-4">
+
+        {/* Card */}
+        <div className="auth-card fade-up" style={{ padding: '32px', animationDelay: '.1s' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#e8f0ff', marginBottom: '24px' }}>
+            Iniciar sesión
+          </h2>
+
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            {/* Email */}
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">Correo electrónico</label>
-              <input type="email" required
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="tu@correo.com" value={email} onChange={e => setEmail(e.target.value)} />
+              <label style={{ fontSize: '13px', fontWeight: 600, color: '#8ba5c8', display: 'block', marginBottom: '8px' }}>
+                Correo electrónico
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4a6080' }}/>
+                <input type="email" required className="auth-input"
+                  placeholder="tu@correo.com" value={email} onChange={e => setEmail(e.target.value)}/>
+              </div>
             </div>
+
+            {/* Password */}
             <div>
-              <label className="text-sm font-medium text-slate-700 block mb-1.5">Contraseña</label>
-              <div className="relative">
-                <input type={showPass ? 'text' : 'password'} required
-                  className="w-full border border-slate-200 rounded-xl px-4 py-2.5 pr-10 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} />
-                <button type="button" onClick={() => setShowPass(!showPass)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                <label style={{ fontSize: '13px', fontWeight: 600, color: '#8ba5c8' }}>Contraseña</label>
+                <span style={{ fontSize: '12px', color: '#1d6ff4', cursor: 'pointer' }}>¿Olvidaste tu contraseña?</span>
+              </div>
+              <div style={{ position: 'relative' }}>
+                <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4a6080' }}/>
+                <input type={showPass ? 'text' : 'password'} required className="auth-input"
+                  style={{ paddingRight: '44px' }}
+                  placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)}/>
+                <button type="button" onClick={() => setShowPass(!showPass)} style={{
+                  position: 'absolute', right: '14px', top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: '#4a6080', cursor: 'pointer', padding: '2px',
+                }}>
                   {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
                 </button>
               </div>
             </div>
-            <button type="submit" disabled={loading}
-              className="w-full bg-blue-600 text-white py-2.5 rounded-xl font-medium text-sm hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2">
-              {loading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"/> : <LogIn size={16}/>}
+
+            {/* Submit */}
+            <button type="submit" disabled={loading} style={{
+              width: '100%', padding: '14px',
+              background: loading ? 'rgba(29,111,244,0.5)' : 'linear-gradient(135deg, #1d6ff4, #3b82f6)',
+              border: 'none', borderRadius: '14px', color: '#fff', fontSize: '15px', fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: '8px', transition: 'all .2s', marginTop: '4px',
+              boxShadow: '0 4px 24px rgba(29,111,244,0.3)', fontFamily: 'inherit',
+            }}>
+              {loading
+                ? <div style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
+                : <LogIn size={16}/>}
               {loading ? 'Ingresando...' : 'Iniciar sesión'}
             </button>
           </form>
-          <div className="flex items-center gap-3 my-5">
-            <div className="flex-1 h-px bg-slate-100"/><span className="text-xs text-slate-400">o continúa con</span><div className="flex-1 h-px bg-slate-100"/>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', margin: '20px 0' }}>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}/>
+            <span style={{ fontSize: '12px', color: '#4a6080' }}>o continúa con</span>
+            <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }}/>
           </div>
-          <button onClick={handleGoogle} disabled={googleLoading}
-            className="w-full border border-slate-200 text-slate-700 py-2.5 rounded-xl font-medium text-sm hover:bg-slate-50 flex items-center justify-center gap-3 disabled:opacity-50">
+
+          {/* Google */}
+          <button onClick={handleGoogle} disabled={googleLoading} style={{
+            width: '100%', padding: '13px', background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.1)', borderRadius: '14px', color: '#e8f0ff',
+            fontSize: '14px', fontWeight: 500, cursor: googleLoading ? 'not-allowed' : 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+            transition: 'all .2s', fontFamily: 'inherit',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}>
             {googleLoading
-              ? <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin"/>
+              ? <div style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%' }}/>
               : <svg width="18" height="18" viewBox="0 0 48 48">
                   <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
                   <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
@@ -83,11 +152,21 @@ export default function LoginPage() {
                 </svg>}
             Continuar con Google
           </button>
-          <p className="text-center text-sm text-slate-500 mt-6">
-            ¿No tienes cuenta? <Link to="/register" className="text-blue-600 font-medium hover:underline">Regístrate</Link>
+
+          <p style={{ textAlign: 'center', fontSize: '13px', color: '#6b8ab8', marginTop: '20px' }}>
+            ¿No tienes cuenta?{' '}
+            <Link to="/register" style={{ color: '#3b82f6', fontWeight: 600, textDecoration: 'none' }}>
+              Regístrate gratis
+            </Link>
           </p>
         </div>
+
+        <p style={{ textAlign: 'center', fontSize: '12px', color: '#4a6080', marginTop: '20px' }}>
+          © 2025 EduFinance · Para colegios de LATAM
+        </p>
       </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   )
 }
