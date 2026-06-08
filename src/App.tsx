@@ -21,6 +21,7 @@ import AdminMeetings from '@/pages/admin/Meetings'
 import AdminSchedules from '@/pages/admin/Schedules'
 import AdminSupplies from '@/pages/admin/Supplies'
 import AdminImport from '@/pages/admin/Import'
+import AdminStripeConfig from '@/pages/admin/StripeConfig'
 import RepDashboard from '@/pages/representative/Dashboard'
 import RepPayments from '@/pages/representative/Payments'
 import RepAnnouncements from '@/pages/representative/Announcements'
@@ -47,6 +48,7 @@ import TeacherReportCards from '@/pages/teacher/ReportCards'
 import TeacherTasks from '@/pages/teacher/Tasks'
 import TeacherSchedules from '@/pages/representative/Schedules'
 import Chat from '@/pages/Chat'
+import InstallPrompt from '@/components/InstallPrompt'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
@@ -81,6 +83,7 @@ function AppRoutes() {
         <Route path="schedules" element={<AdminSchedules />} />
         <Route path="supplies" element={<AdminSupplies />} />
         <Route path="import" element={<AdminImport />} />
+        <Route path="stripe-config" element={<AdminStripeConfig />} />
         <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
@@ -135,6 +138,7 @@ export default function App() {
         <AuthProvider>
           <AppRoutes />
           <Toaster position="top-right" toastOptions={{ duration: 4000 }} />
+          <InstallPrompt />
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>

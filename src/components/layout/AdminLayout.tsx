@@ -20,6 +20,7 @@ const NAV = [
   { to: '/messages', icon: MessageSquare, label: 'Mensajes' },
   { to: '/import', icon: Upload, label: 'Importar' },
   { to: '/audit', icon: Shield, label: 'Actividad' },
+  { to: '/stripe-config', icon: CreditCard, label: 'Stripe' },
   { to: '/settings', icon: Settings, label: 'Configuración' },
 ]
 

@@ -11,6 +11,8 @@ import { es } from 'date-fns/locale'
 import { Upload, FileText, Image as ImageIcon, AlertCircle, CheckCircle, Clock, XCircle, X, Plus, CreditCard } from 'lucide-react'
 import clsx from 'clsx'
 import type { Payment } from '@/types'
+import StripePaymentButton from '@/components/StripePaymentButton'
+import { stripeConfigured } from '@/services/stripe'
 
 const toDate = (v: any): Date => v?.toDate ? v.toDate() : new Date(v)
 
@@ -381,6 +383,8 @@ export default function RepresentativePayments() {
           {payments.map(p => {
             const cfg = STATUS_LABELS[p.status]
             const Icon = cfg?.icon
+            const canPayWithStripe = stripeConfigured && (p.status === 'pending' || p.status === 'rejected')
+            const student = students.find(s => s.id === (p as any).studentId)
             return (
               <div key={p.id} className="bg-white rounded-xl border border-slate-200 p-4">
                 <div className="flex items-start justify-between gap-3">
@@ -395,6 +399,16 @@ export default function RepresentativePayments() {
                       {(p as any).reference && <span>Ref: <strong className="font-mono">****{(p as any).reference}</strong></span>}
                     </div>
                     {p.rejectionReason && <p className="text-xs text-red-500 mt-1">Rechazado: {p.rejectionReason}</p>}
+                    {canPayWithStripe && (
+                      <div className="mt-2">
+                        <StripePaymentButton
+                          amount={p.amount || 0}
+                          currency={(p as any).currency || 'USD'}
+                          description={p.description || ''}
+                          studentName={student?.fullName || ''}
+                        />
+                      </div>
+                    )}
                   </div>
                   <div className="flex flex-col items-end gap-2">
                     <span className={clsx('inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium', cfg?.cls)}>

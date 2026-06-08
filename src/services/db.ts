@@ -6,6 +6,7 @@ import { db } from './firebase'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AppUser, Student, Payment, Message, Announcement, Notification, School } from '@/types'
+import { queueEmail } from './emailService'
 
 const fromDoc = <T>(snap: any): T => ({ id: snap.id, ...snap.data() } as T)
 
@@ -67,12 +68,48 @@ export const submitPaymentReceipt = (paymentId: string, receiptUrl: string, rece
     receiptUrl, receiptType, amountPaid: increment(amountPaid),
     balance: increment(-amountPaid), status: 'in_review', paidAt: serverTimestamp()
   })
-export const approvePayment = (paymentId: string, adminId: string) =>
-  updateDoc(doc(db, 'payments', paymentId), { status: 'approved', approvedBy: adminId, approvedAt: serverTimestamp() })
-export const rejectPayment = (paymentId: string, reason: string) =>
-  updateDoc(doc(db, 'payments', paymentId), {
+export const approvePayment = async (paymentId: string, adminId: string) => {
+  await updateDoc(doc(db, 'payments', paymentId), { status: 'approved', approvedBy: adminId, approvedAt: serverTimestamp() })
+  try {
+    const snap = await getDoc(doc(db, 'payments', paymentId))
+    if (snap.exists()) {
+      const p = snap.data() as Payment
+      const repSnap = await getDoc(doc(db, 'users', p.representativeId))
+      if (repSnap.exists()) {
+        const rep = repSnap.data() as AppUser
+        await queueEmail({
+          to: rep.email,
+          subject: `Pago aprobado: ${p.description || p.monthLabel || 'Pago'}`,
+          type: 'payment_approved',
+          schoolId: p.schoolId,
+          data: { representativeName: rep.displayName, paymentDescription: p.description || p.monthLabel, amount: p.amountPaid, paymentId },
+        })
+      }
+    }
+  } catch { /* no interrumpir el flujo principal */ }
+}
+export const rejectPayment = async (paymentId: string, reason: string) => {
+  await updateDoc(doc(db, 'payments', paymentId), {
     status: 'rejected', rejectionReason: reason, receiptUrl: null, amountPaid: 0
   })
+  try {
+    const snap = await getDoc(doc(db, 'payments', paymentId))
+    if (snap.exists()) {
+      const p = snap.data() as Payment
+      const repSnap = await getDoc(doc(db, 'users', p.representativeId))
+      if (repSnap.exists()) {
+        const rep = repSnap.data() as AppUser
+        await queueEmail({
+          to: rep.email,
+          subject: `Pago rechazado: ${p.description || p.monthLabel || 'Pago'}`,
+          type: 'payment_rejected',
+          schoolId: p.schoolId,
+          data: { representativeName: rep.displayName, paymentDescription: p.description || p.monthLabel, reason, paymentId },
+        })
+      }
+    }
+  } catch { /* no interrumpir el flujo principal */ }
+}
 export const editPaymentAmount = async (paymentId: string, newAmount: number) => {
   const s = await getDoc(doc(db, 'payments', paymentId))
   if (!s.exists()) return
@@ -95,7 +132,50 @@ export const markMessageRead = (id: string) => updateDoc(doc(db, 'messages', id)
 export const closeMessage = (id: string) => updateDoc(doc(db, 'messages', id), { status: 'closed' })
 
 export const createAnnouncement = async (data: Omit<Announcement, 'id' | 'createdAt' | 'readBy'>) => {
-  const r = await addDoc(collection(db, 'announcements'), { ...data, readBy: [], createdAt: serverTimestamp() }); return r.id
+  const r = await addDoc(collection(db, 'announcements'), { ...data, readBy: [], createdAt: serverTimestamp() })
+  try {
+    // Obtener representantes del grado objetivo para enviarles email
+    const gradesFilter = data.targetGrades && data.targetGrades.length > 0 ? data.targetGrades : null
+    let studentsSnap: any
+    if (gradesFilter) {
+      // Buscar estudiantes de los grados objetivo
+      const studentPromises = gradesFilter.map(g =>
+        getDocs(query(collection(db, 'students'), where('schoolId', '==', data.schoolId), where('grade', '==', g)))
+      )
+      const results = await Promise.all(studentPromises)
+      const repIds = new Set<string>()
+      results.forEach(snap => snap.docs.forEach((d: any) => repIds.add(d.data().representativeId)))
+      for (const repId of repIds) {
+        const repSnap = await getDoc(doc(db, 'users', repId))
+        if (!repSnap.exists()) continue
+        const rep = repSnap.data() as AppUser
+        await queueEmail({
+          to: rep.email,
+          subject: `Nuevo anuncio: ${data.title}`,
+          type: 'announcement',
+          schoolId: data.schoolId,
+          data: { representativeName: rep.displayName, title: data.title, body: data.body, teacherName: data.teacherName, announcementId: r.id },
+        })
+      }
+    } else {
+      // Anuncio general: obtener todos los representantes de la escuela
+      studentsSnap = await getDocs(query(collection(db, 'students'), where('schoolId', '==', data.schoolId)))
+      const repIds = new Set<string>(studentsSnap.docs.map((d: any) => d.data().representativeId))
+      for (const repId of repIds) {
+        const repSnap = await getDoc(doc(db, 'users', repId))
+        if (!repSnap.exists()) continue
+        const rep = repSnap.data() as AppUser
+        await queueEmail({
+          to: rep.email,
+          subject: `Nuevo anuncio: ${data.title}`,
+          type: 'announcement',
+          schoolId: data.schoolId,
+          data: { representativeName: rep.displayName, title: data.title, body: data.body, teacherName: data.teacherName, announcementId: r.id },
+        })
+      }
+    }
+  } catch { /* no interrumpir el flujo principal */ }
+  return r.id
 }
 export const getAnnouncementsBySchool = async (schoolId: string) => {
   const q = query(collection(db, 'announcements'), where('schoolId', '==', schoolId), orderBy('createdAt', 'desc'), limit(50))
