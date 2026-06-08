@@ -53,7 +53,7 @@ export const getPaymentsByStudent = async (studentId: string) => {
   const q = query(collection(db, 'payments'), where('studentId', '==', studentId), orderBy('createdAt', 'desc'))
   return (await getDocs(q)).docs.map(d => fromDoc<Payment>(d))
 }
-export const getPaymentsBySchool = async (schoolId: string, lim = 100) => {
+export const getPaymentsBySchool = async (schoolId: string, lim = 500) => {
   const q = query(collection(db, 'payments'), where('schoolId', '==', schoolId), orderBy('createdAt', 'desc'), limit(lim))
   return (await getDocs(q)).docs.map(d => fromDoc<Payment>(d))
 }
@@ -281,3 +281,43 @@ export const getMeetingsBySchool = async (schoolId: string) => {
   return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
 }
 export const deleteMeeting = (id: string) => deleteDoc(doc(db, 'meetings', id))
+
+export const applyLateFees = async (schoolId: string) => {
+  const school = await getSchool(schoolId)
+  if (!school) return
+  const settings = school.settings
+  if (!settings?.lateFeeEnabled) return
+
+  const now = new Date()
+  const graceDays = settings.lateFeeGraceDays ?? 0
+  const feePercent = settings.lateFeePercent ?? 0
+
+  const q = query(
+    collection(db, 'payments'),
+    where('schoolId', '==', schoolId),
+    where('status', '==', 'pending'),
+  )
+  const snap = await getDocs(q)
+
+  for (const d of snap.docs) {
+    const data = d.data()
+    if (data.lateFeeApplied) continue
+    if (!data.dueDate) continue
+
+    const due: Date = data.dueDate.toDate ? data.dueDate.toDate() : new Date(data.dueDate)
+    const graceCutoff = new Date(due.getTime() + graceDays * 24 * 60 * 60 * 1000)
+
+    if (now <= graceCutoff) continue
+
+    const baseAmount: number = data.amount ?? 0
+    const lateFeeAmount = Math.round(baseAmount * (feePercent / 100) * 100) / 100
+    const newAmount = baseAmount + lateFeeAmount
+
+    await updateDoc(doc(db, 'payments', d.id), {
+      amount: newAmount,
+      balance: newAmount - (data.amountPaid ?? 0),
+      lateFeeApplied: true,
+      lateFeeAmount,
+    })
+  }
+}

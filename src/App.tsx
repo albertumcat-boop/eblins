@@ -20,6 +20,7 @@ import AdminCalendar from '@/pages/admin/Calendar'
 import AdminMeetings from '@/pages/admin/Meetings'
 import AdminSchedules from '@/pages/admin/Schedules'
 import AdminSupplies from '@/pages/admin/Supplies'
+import AdminImport from '@/pages/admin/Import'
 import RepDashboard from '@/pages/representative/Dashboard'
 import RepPayments from '@/pages/representative/Payments'
 import RepAnnouncements from '@/pages/representative/Announcements'
@@ -79,6 +80,7 @@ function AppRoutes() {
         <Route path="meetings" element={<AdminMeetings />} />
         <Route path="schedules" element={<AdminSchedules />} />
         <Route path="supplies" element={<AdminSupplies />} />
+        <Route path="import" element={<AdminImport />} />
         <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

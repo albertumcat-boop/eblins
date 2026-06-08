@@ -23,7 +23,7 @@ export default function AdminSupplies() {
   })
 
   useEffect(() => {
-    const current = allSupplies.find((s: any) => s.grade === grade)
+    const current = allSupplies.find((s: any) => s.grade === grade) as any
     setSupplies(current?.supplies || '')
     setUniforms(current?.uniforms || '')
   }, [grade, allSupplies])

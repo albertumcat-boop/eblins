@@ -107,13 +107,13 @@ export default function RepresentativeGrades() {
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {Object.entries(grades).map(([subject, grade]) => {
+                {Object.entries(grades as Record<string, any>).map(([subject, grade]) => {
                   const n = Number(grade)
                   return (
                     <div key={subject} className="flex items-center justify-between px-5 py-3">
                       <p className="text-sm text-slate-700">{subject}</p>
                       <span className={`font-bold text-lg ${n >= 10 ? 'text-green-600' : 'text-red-500'}`}>
-                        {grade}
+                        {String(grade)}
                       </span>
                     </div>
                   )

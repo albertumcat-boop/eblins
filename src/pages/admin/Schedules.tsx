@@ -23,7 +23,7 @@ export default function AdminSchedules() {
     enabled: !!schoolId,
   })
 
-  const currentSchedule = schedules.find((s: any) => s.grade === grade && s.section === section)
+  const currentSchedule = schedules.find((s: any) => s.grade === grade && s.section === section) as any
 
   const handleSave = async () => {
     if (!content.trim()) return
@@ -42,11 +42,11 @@ export default function AdminSchedules() {
       <div className="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <div><label className="text-sm font-medium text-slate-700 block mb-1.5">Grado</label>
-            <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={grade} onChange={e => { setGrade(e.target.value); setContent(schedules.find((s: any) => s.grade === e.target.value && s.section === section)?.content || '') }}>
+            <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={grade} onChange={e => { setGrade(e.target.value); setContent((schedules.find((s: any) => s.grade === e.target.value && s.section === section) as any)?.content || '') }}>
               {GRADES.map(g => <option key={g}>{g}</option>)}
             </select></div>
           <div><label className="text-sm font-medium text-slate-700 block mb-1.5">Sección</label>
-            <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={section} onChange={e => { setSection(e.target.value); setContent(schedules.find((s: any) => s.grade === grade && s.section === e.target.value)?.content || '') }}>
+            <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" value={section} onChange={e => { setSection(e.target.value); setContent((schedules.find((s: any) => s.grade === grade && s.section === e.target.value) as any)?.content || '') }}>
               {SECTIONS.map(s => <option key={s}>{s}</option>)}
             </select></div>
         </div>
