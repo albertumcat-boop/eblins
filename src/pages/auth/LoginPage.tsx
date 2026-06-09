@@ -2,7 +2,9 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
-import { Eye, EyeOff, LogIn, Lock, Mail } from 'lucide-react'
+import { Eye, EyeOff, LogIn, Lock, Mail, ArrowLeft } from 'lucide-react'
+import { sendPasswordResetEmail } from 'firebase/auth'
+import { auth } from '@/services/firebase'
 
 export default function LoginPage() {
   const { signIn, signInWithGoogle } = useAuth()
@@ -12,6 +14,23 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
   const [loading, setLoading] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
+  const [resetMode, setResetMode] = useState(false)
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+
+  const handleReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!resetEmail) return
+    setResetLoading(true)
+    try {
+      await sendPasswordResetEmail(auth, resetEmail)
+      toast.success('Correo de recuperación enviado. Revisa tu bandeja.')
+      setResetMode(false)
+    } catch (err: any) {
+      if (err.code === 'auth/user-not-found') toast.error('No existe cuenta con ese correo')
+      else toast.error('Error al enviar el correo')
+    } finally { setResetLoading(false) }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -57,6 +76,53 @@ export default function LoginPage() {
       `}</style>
 
       <div style={{ width: '100%', maxWidth: '420px' }}>
+
+        {/* Reset Password Mode */}
+        {resetMode && (
+          <div className="fade-up">
+            <button onClick={() => setResetMode(false)} style={{
+              display: 'flex', alignItems: 'center', gap: '6px', background: 'none', border: 'none',
+              color: '#6b8ab8', cursor: 'pointer', fontSize: '14px', marginBottom: '24px', padding: 0,
+            }}>
+              <ArrowLeft size={16}/> Volver al login
+            </button>
+            <div className="auth-card" style={{ padding: '32px' }}>
+              <h2 style={{ fontSize: '20px', fontWeight: 700, color: '#e8f0ff', marginBottom: '8px' }}>
+                Recuperar contraseña
+              </h2>
+              <p style={{ color: '#6b8ab8', fontSize: '14px', marginBottom: '24px' }}>
+                Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.
+              </p>
+              <form onSubmit={handleReset} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div>
+                  <label style={{ fontSize: '13px', fontWeight: 600, color: '#8ba5c8', display: 'block', marginBottom: '8px' }}>
+                    Correo electrónico
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4a6080' }}/>
+                    <input type="email" required className="auth-input"
+                      placeholder="tu@correo.com" value={resetEmail} onChange={e => setResetEmail(e.target.value)}/>
+                  </div>
+                </div>
+                <button type="submit" disabled={resetLoading} style={{
+                  width: '100%', padding: '14px',
+                  background: resetLoading ? 'rgba(29,111,244,0.5)' : 'linear-gradient(135deg, #1d6ff4, #3b82f6)',
+                  border: 'none', borderRadius: '14px', color: '#fff', fontSize: '15px', fontWeight: 600,
+                  cursor: resetLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', gap: '8px', fontFamily: 'inherit',
+                }}>
+                  {resetLoading
+                    ? <div style={{ width: '18px', height: '18px', border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}/>
+                    : <Mail size={16}/>}
+                  {resetLoading ? 'Enviando...' : 'Enviar enlace de recuperación'}
+                </button>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Login Mode */}
+        {!resetMode && <>
         {/* Logo */}
         <div className="fade-up" style={{ textAlign: 'center', marginBottom: '32px' }}>
           <div style={{
@@ -93,7 +159,7 @@ export default function LoginPage() {
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#8ba5c8' }}>Contraseña</label>
-                <span style={{ fontSize: '12px', color: '#1d6ff4', cursor: 'pointer' }}>¿Olvidaste tu contraseña?</span>
+                <span onClick={() => { setResetEmail(email); setResetMode(true) }} style={{ fontSize: '12px', color: '#1d6ff4', cursor: 'pointer' }}>¿Olvidaste tu contraseña?</span>
               </div>
               <div style={{ position: 'relative' }}>
                 <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4a6080' }}/>
@@ -164,6 +230,7 @@ export default function LoginPage() {
         <p style={{ textAlign: 'center', fontSize: '12px', color: '#4a6080', marginTop: '20px' }}>
           © 2025 EduFinance · Para colegios de LATAM
         </p>
+        </>}
       </div>
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>

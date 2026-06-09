@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+
 import { createSchool, setUserSchool } from '@/services/db'
 import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
 import { storage, db } from '@/services/firebase'
@@ -48,7 +49,7 @@ const defaultLapsos: Lapso[] = [
 ]
 
 export default function OnboardingWizard() {
-  const { firebaseUser, appUser } = useAuth()
+  const { firebaseUser, appUser, refreshAppUser } = useAuth()
   const navigate = useNavigate()
   const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
@@ -158,10 +159,9 @@ export default function OnboardingWizard() {
       // Wait for Firestore to propagate, then reload auth state
       toast.success('¡Colegio creado exitosamente!')
 
-      // Reload the page so AuthContext re-fetches the updated user
-      setTimeout(() => {
-        window.location.href = '/'
-      }, 800)
+      // Refresh auth context so App.tsx re-evaluates the routing guard
+      await refreshAppUser()
+      navigate('/', { replace: true })
     } catch (err: any) {
       console.error(err)
       toast.error('Error al crear el colegio. Intenta de nuevo.')

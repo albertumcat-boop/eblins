@@ -54,6 +54,8 @@ import OnboardingWizard from '@/pages/onboarding/OnboardingWizard'
 import PendingSchool from '@/pages/PendingSchool'
 import NotFound from '@/pages/NotFound'
 import SuperAdminPanel from '@/pages/superadmin/SuperAdminPanel'
+import Legal from '@/pages/Legal'
+import DemoSeeder from '@/pages/admin/DemoSeeder'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
@@ -70,6 +72,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/onboarding" element={<OnboardingWizard />} />
+      <Route path="/legal" element={<Legal />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
@@ -87,6 +90,8 @@ function AppRoutes() {
   if (appUser.email === 'albert.umcat@gmail.com') return (
     <Routes>
       <Route path="/superadmin" element={<SuperAdminPanel />} />
+      <Route path="/demo-seeder" element={<DemoSeeder />} />
+      <Route path="/legal" element={<Legal />} />
       {/* También puede acceder al panel de admin normal */}
       <Route path="/" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />

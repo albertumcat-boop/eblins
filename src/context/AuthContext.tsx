@@ -15,6 +15,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<void>
   signUp: (email: string, password: string, displayName: string, role: string, schoolId: string) => Promise<void>
   logout: () => Promise<void>
+  refreshAppUser: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -58,10 +59,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => { await signOut(auth); setAppUser(null) }
 
+  const refreshAppUser = async () => {
+    if (!firebaseUser) return
+    const snap = await getDoc(doc(db, 'users', firebaseUser.uid))
+    if (snap.exists()) setAppUser({ id: firebaseUser.uid, ...snap.data() } as AppUser)
+  }
+
   const emailVerified = firebaseUser?.emailVerified ?? false
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, appUser, loading, emailVerified, signIn, signInWithGoogle, signUp, logout }}>
+    <AuthContext.Provider value={{ firebaseUser, appUser, loading, emailVerified, signIn, signInWithGoogle, signUp, logout, refreshAppUser }}>
       {children}
     </AuthContext.Provider>
   )

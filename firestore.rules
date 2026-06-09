@@ -1,0 +1,157 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions
+    function isSignedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function getUserData() { return get(/databases/$(database)/documents/users/$(uid())).data; }
+    function userSchool() { return getUserData().schoolId; }
+    function userRole() { return getUserData().role; }
+    function isAdmin() { return isSignedIn() && userRole() == 'admin'; }
+    function isTeacher() { return isSignedIn() && userRole() == 'teacher'; }
+    function isRep() { return isSignedIn() && userRole() == 'representative'; }
+    function belongsToSchool(schoolId) { return userSchool() == schoolId; }
+    function isSuperAdmin() { return request.auth.token.email == 'albert.umcat@gmail.com'; }
+
+    // Schools
+    match /schools/{schoolId} {
+      allow read: if isSignedIn() && (belongsToSchool(schoolId) || isSuperAdmin());
+      allow create: if isSignedIn();  // cualquier auth puede crear su escuela en onboarding
+      allow update: if isAdmin() && belongsToSchool(schoolId);
+      allow delete: if isSuperAdmin();
+    }
+
+    // Users
+    match /users/{userId} {
+      allow read: if isSignedIn() && (uid() == userId || (isAdmin() && belongsToSchool(resource.data.schoolId)) || isSuperAdmin());
+      allow create: if isSignedIn() && uid() == userId;
+      allow update: if isSignedIn() && (uid() == userId || isAdmin());
+      allow delete: if isSuperAdmin();
+    }
+
+    // Students
+    match /students/{studentId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if isAdmin() && belongsToSchool(resource.data.schoolId);
+      allow create: if isAdmin();
+    }
+
+    // Payments
+    match /payments/{paymentId} {
+      allow read: if isSignedIn() && (
+        belongsToSchool(resource.data.schoolId) &&
+        (isAdmin() || isTeacher() || resource.data.representativeId == uid())
+      );
+      allow create: if isSignedIn() && belongsToSchool(request.resource.data.schoolId);
+      allow update: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (
+        isAdmin() ||
+        (resource.data.representativeId == uid() && resource.data.status == 'pending')
+      );
+      allow delete: if isAdmin() && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Messages
+    match /messages/{messageId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow create: if isSignedIn() && belongsToSchool(request.resource.data.schoolId);
+      allow update: if isAdmin() && belongsToSchool(resource.data.schoolId);
+      allow delete: if isAdmin() && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Announcements
+    match /announcements/{announcementId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if isTeacher() && belongsToSchool(resource.data.schoolId);
+      allow create: if isTeacher() || isAdmin();
+      allow update: if isAdmin() && belongsToSchool(resource.data.schoolId);
+      allow delete: if (isTeacher() && resource.data.teacherId == uid()) || isAdmin();
+    }
+
+    // Notifications — solo el destinatario y admin
+    match /notifications/{notifId} {
+      allow read: if isSignedIn() && (resource.data.userId == uid() || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && resource.data.userId == uid();
+      allow delete: if isAdmin();
+    }
+
+    // Attendance
+    match /attendance/{attendanceId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+      allow create: if isTeacher() || isAdmin();
+    }
+
+    // Behavior / Conduct
+    match /behavior/{behaviorId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+      allow create: if isTeacher() || isAdmin();
+    }
+
+    // Grades
+    match /grades/{gradeId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Tasks
+    match /tasks/{taskId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Events / Calendar
+    match /events/{eventId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if isAdmin() && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Meetings
+    match /meetings/{meetingId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if isAdmin() && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Schedules
+    match /schedules/{scheduleId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Supplies
+    match /supplies/{supplyId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow write: if isAdmin() && belongsToSchool(resource.data.schoolId);
+    }
+
+    // Audit logs
+    match /auditLogs/{logId} {
+      allow read: if isAdmin() && belongsToSchool(resource.data.schoolId);
+      allow create: if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // Conversations (Chat)
+    match /conversations/{convId} {
+      allow read: if isSignedIn() && (
+        uid() in resource.data.participants || isAdmin()
+      );
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && uid() in resource.data.participants;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && uid() in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+        allow create: if isSignedIn() && uid() in get(/databases/$(database)/documents/conversations/$(convId)).data.participants;
+        allow update, delete: if false;
+      }
+    }
+
+    // Email Queue
+    match /emailQueue/{jobId} {
+      allow read, write: if isAdmin() && belongsToSchool(resource.data.schoolId);
+      allow create: if isSignedIn();
+    }
+  }
+}

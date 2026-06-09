@@ -1,0 +1,70 @@
+{
+  "indexes": [
+    { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "status", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "studentId", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "representativeId", "order": "ASCENDING"},
+      {"fieldPath": "status", "order": "ASCENDING"}
+    ]},
+    { "collectionGroup": "students", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "grade", "order": "ASCENDING"},
+      {"fieldPath": "section", "order": "ASCENDING"}
+    ]},
+    { "collectionGroup": "attendance", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "date", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "attendance", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "grade", "order": "ASCENDING"},
+      {"fieldPath": "section", "order": "ASCENDING"},
+      {"fieldPath": "date", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "announcements", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "notifications", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "userId", "order": "ASCENDING"},
+      {"fieldPath": "read", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "messages", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "behavior", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "studentId", "order": "ASCENDING"},
+      {"fieldPath": "date", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "conversations", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "updatedAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "tasks", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "grade", "order": "ASCENDING"},
+      {"fieldPath": "section", "order": "ASCENDING"},
+      {"fieldPath": "dueDate", "order": "ASCENDING"}
+    ]},
+    { "collectionGroup": "emailQueue", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]}
+  ],
+  "fieldOverrides": []
+}

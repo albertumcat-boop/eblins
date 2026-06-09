@@ -1091,8 +1091,8 @@ export default function Landing() {
           <div className="footer-bottom">
             <span className="footer-copy">© 2025 EduFinance. Todos los derechos reservados.</span>
             <div className="footer-legal">
-              <a href="#">Términos de uso</a>
-              <a href="#">Privacidad</a>
+              <Link to="/legal">Términos</Link>
+              <Link to="/legal">Privacidad</Link>
               <a href="#">Cookies</a>
             </div>
           </div>
