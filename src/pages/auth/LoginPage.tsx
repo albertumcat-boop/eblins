@@ -157,9 +157,8 @@ export default function LoginPage() {
 
             {/* Password */}
             <div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                 <label style={{ fontSize: '13px', fontWeight: 600, color: '#8ba5c8' }}>Contraseña</label>
-                <span onClick={() => { setResetEmail(email); setResetMode(true) }} style={{ fontSize: '12px', color: '#1d6ff4', cursor: 'pointer' }}>¿Olvidaste tu contraseña?</span>
               </div>
               <div style={{ position: 'relative' }}>
                 <Lock size={16} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4a6080' }}/>
@@ -173,6 +172,19 @@ export default function LoginPage() {
                   {showPass ? <EyeOff size={16}/> : <Eye size={16}/>}
                 </button>
               </div>
+            </div>
+
+            {/* Forgot password link — visible below password field */}
+            <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+              <span
+                onClick={() => { setResetEmail(email); setResetMode(true) }}
+                style={{
+                  fontSize: '13px', color: '#60a5fa', cursor: 'pointer',
+                  fontWeight: 500, textDecoration: 'underline', textUnderlineOffset: '3px',
+                }}
+              >
+                ¿Olvidaste tu contraseña?
+              </span>
             </div>
 
             {/* Submit */}
