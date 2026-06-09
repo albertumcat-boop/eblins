@@ -11,6 +11,7 @@ import {
   query,
   where,
 } from 'firebase/firestore'
+import { format } from 'date-fns'
 
 export const DEMO_SCHOOL_ID = 'demo_school_2024'
 
@@ -98,7 +99,8 @@ export async function seedDemoData(_adminUserId: string): Promise<{
   const adminRef = doc(collection(db, 'users'))
   const adminId = adminRef.id
   await setDoc(adminRef, {
-    fullName: 'Directora Demo — San Simón',
+    fullName: 'Directora Carmen López',
+    displayName: 'Directora Carmen López',
     email: 'admin@demo-sansimón.com',
     role: 'admin',
     schoolId: DEMO_SCHOOL_ID,
@@ -197,6 +199,11 @@ export async function seedDemoData(_adminUserId: string): Promise<{
     const submittedDate = daysAgo(p.daysAgoVal)
     const reviewedDate = new Date(submittedDate)
     reviewedDate.setHours(reviewedDate.getHours() + 4)
+    // dueDate: 10th of the current month for pending/overdue, same as submission for approved
+    const dueDate = new Date(submittedDate)
+    dueDate.setDate(10)
+    const amountPaid = p.status === 'approved' ? p.amount : 0
+    const balance = p.amount - amountPaid
 
     await addDoc(collection(db, 'payments'), {
       schoolId: DEMO_SCHOOL_ID,
@@ -206,9 +213,13 @@ export async function seedDemoData(_adminUserId: string): Promise<{
       representativeName: student.repName,
       month: p.month,
       amount: p.amount,
+      amountPaid,
+      balance,
+      isFractioned: false,
       currency: 'USD',
       method: p.method,
       status: p.status,
+      dueDate: ts(dueDate),
       receiptUrl: p.status !== 'overdue' ? 'https://via.placeholder.com/400x600?text=Comprobante' : '',
       notes: p.status === 'overdue' ? 'Pago vencido — sin comprobante recibido' : '',
       submittedAt: ts(submittedDate),
@@ -256,9 +267,12 @@ export async function seedDemoData(_adminUserId: string): Promise<{
     await addDoc(collection(db, 'announcements'), {
       schoolId: DEMO_SCHOOL_ID,
       title: a.title,
-      content: a.content,
+      body: a.content,       // field name used by the app is 'body'
       author: a.author,
       pinned: a.pinned,
+      fileUrls: [],
+      targetGrades: [],
+      readBy: [],
       imageUrl: '',
       createdAt: ts(daysAgo(a.daysAgoVal)),
       updatedAt: ts(daysAgo(a.daysAgoVal)),
@@ -300,7 +314,7 @@ export async function seedDemoData(_adminUserId: string): Promise<{
   ]
 
   for (const e of events) {
-    await addDoc(collection(db, 'calendarEvents'), {
+    await addDoc(collection(db, 'events'), {
       schoolId: DEMO_SCHOOL_ID,
       title: e.title,
       date: ts(e.date),
@@ -314,6 +328,8 @@ export async function seedDemoData(_adminUserId: string): Promise<{
   // 9. Attendance — last 5 school days
   const attendanceStatuses = ['present', 'present', 'present', 'absent', 'late'] // realistic distribution
   for (let day = 1; day <= 5; day++) {
+    // Store date as string 'yyyy-MM-dd' so queries can compare with === correctly
+    const dateStr = format(daysAgo(day), 'yyyy-MM-dd')
     for (let si = 0; si < studentIds.length; si++) {
       const statusIdx = (si + day) % attendanceStatuses.length
       await addDoc(collection(db, 'attendance'), {
@@ -322,7 +338,7 @@ export async function seedDemoData(_adminUserId: string): Promise<{
         studentName: STUDENTS[si].fullName,
         grade: STUDENTS[si].grade,
         section: STUDENTS[si].section,
-        date: ts(daysAgo(day)),
+        date: dateStr,        // string 'yyyy-MM-dd' — matches attendance query comparisons
         status: attendanceStatuses[statusIdx],
         notes: attendanceStatuses[statusIdx] === 'absent' ? 'Sin justificación' : '',
         markedBy: teacherIds[0],
@@ -419,7 +435,7 @@ async function deleteCollection(collectionName: string, fieldPath: string, value
 export async function deleteDemoData(): Promise<void> {
   const collections = [
     'payments', 'announcements', 'notifications',
-    'calendarEvents', 'attendance', 'behavior', 'grades',
+    'events', 'attendance', 'behavior', 'grades',
     'students',
   ]
   for (const col of collections) {

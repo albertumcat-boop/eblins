@@ -1,5 +1,5 @@
 export type UserRole = 'admin' | 'representative' | 'teacher'
-export type PaymentStatus = 'pending' | 'in_review' | 'approved' | 'rejected'
+export type PaymentStatus = 'pending' | 'in_review' | 'approved' | 'rejected' | 'overdue'
 export type PaymentType = 'monthly' | 'enrollment' | 'additional'
 export type MessageCategory = 'payment_query' | 'administrative' | 'general' | 'complaint'
 
@@ -25,7 +25,7 @@ export interface Payment {
   id: string; studentId: string; schoolId: string; representativeId: string
   type: PaymentType; description: string; amount: number; amountPaid: number
   balance: number; status: PaymentStatus; receiptUrl?: string; receiptType?: 'image' | 'pdf'
-  rejectionReason?: string; isFractioned: boolean; dueDate: Date; paidAt?: Date
+  rejectionReason?: string; isFractioned: boolean; dueDate?: Date | any; paidAt?: Date
   approvedBy?: string; createdAt: Date; monthLabel?: string
 }
 export interface PaymentInstallment {

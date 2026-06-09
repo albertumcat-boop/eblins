@@ -69,8 +69,7 @@ export default function AdminPayments() {
           body: `Tu pago de $${p.amountPaid?.toFixed(2)} ha sido aprobado.`,
           type: 'payment', relatedId: paymentId, read: false
         })
-        const student = students.find(s => s.id === p.studentId)
-        if (student) generatePaymentReceiptPDF(p, student.fullName, (school as any)?.name || 'EduFinance')
+        // No auto-descargar PDF — el admin puede descargarlo manualmente desde la tabla
         await createAuditLog({
           schoolId,
           action: 'payment_approved',

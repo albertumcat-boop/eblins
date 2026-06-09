@@ -72,7 +72,7 @@ export default function RepresentativeLayout() {
           <button className="ml-auto lg:hidden text-slate-400" onClick={() => setOpen(false)}><X size={18}/></button>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          {ALL_NAV.map(({ to, icon: Icon, label, exact }) => (
+          {ALL_NAV.map(({ to, icon: Icon, label, exact }: any) => (
             <NavLink key={to + label} to={to} end={exact} className={({ isActive }) => clsx(
               'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
               isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600 hover:bg-slate-50 hover:text-slate-800'

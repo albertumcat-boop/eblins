@@ -169,7 +169,7 @@ export default function OnboardingWizard() {
     }
   }
 
-  const progressPct = ((step - 1) / 2) * 100
+  const progressPct = Math.min(((step - 1) / 2) * 100, 100)
 
   return (
     <>
@@ -193,7 +193,7 @@ export default function OnboardingWizard() {
       <div style={{ minHeight: '100vh', background: '#050d1a', fontFamily: 'Inter, system-ui, sans-serif', padding: '24px 16px' }}>
         {/* Progress bar */}
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: 3, background: 'rgba(255,255,255,0.08)', zIndex: 50 }}>
-          <div style={{ height: '100%', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)', width: `${progressPct + (step === 3 ? 100 : 33)}%`, transition: 'width 0.5s ease' }} />
+          <div style={{ height: '100%', background: 'linear-gradient(90deg, #3b82f6, #60a5fa)', width: `${progressPct}%`, transition: 'width 0.4s ease' }} />
         </div>
 
         <div style={{ maxWidth: 620, margin: '0 auto', paddingTop: 40 }}>

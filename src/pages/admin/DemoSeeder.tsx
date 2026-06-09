@@ -24,15 +24,15 @@ type Status = 'idle' | 'running' | 'done' | 'error'
 export default function DemoSeeder() {
   const { appUser } = useAuth()
 
-  if (!appUser || appUser.email !== SUPER_ADMIN_EMAIL) {
-    return <Navigate to="/" replace />
-  }
-
   const [status, setStatus] = useState<Status>('idle')
   const [stepsDone, setStepsDone] = useState<Set<string>>(new Set())
   const [credentials, setCredentials] = useState<{ email: string; password: string; schoolId: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [copied, setCopied] = useState<string | null>(null)
+
+  if (!appUser || appUser.email !== SUPER_ADMIN_EMAIL) {
+    return <Navigate to="/" replace />
+  }
 
   async function handleSeed() {
     setStatus('running')
@@ -53,7 +53,7 @@ export default function DemoSeeder() {
     }, msPerStep)
 
     try {
-      const result = await seedDemoData(appUser.uid)
+      const result = await seedDemoData(appUser.id)
       clearInterval(progressInterval)
       // Mark all steps done
       setStepsDone(new Set(SEED_STEPS.map(s => s.id)))

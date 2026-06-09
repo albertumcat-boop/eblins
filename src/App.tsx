@@ -47,7 +47,7 @@ import TeacherAttendance from '@/pages/teacher/Attendance'
 import TeacherBehavior from '@/pages/teacher/Behavior'
 import TeacherReportCards from '@/pages/teacher/ReportCards'
 import TeacherTasks from '@/pages/teacher/Tasks'
-import TeacherSchedules from '@/pages/representative/Schedules'
+import TeacherSchedules from '@/pages/teacher/Schedules'
 import Chat from '@/pages/Chat'
 import InstallPrompt from '@/components/InstallPrompt'
 import OnboardingWizard from '@/pages/onboarding/OnboardingWizard'
@@ -74,16 +74,6 @@ function AppRoutes() {
       <Route path="/onboarding" element={<OnboardingWizard />} />
       <Route path="/legal" element={<Legal />} />
       <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
-  )
-  // Admin con escuela pendiente → redirigir a onboarding
-  if (
-    appUser.role === 'admin' &&
-    (appUser.schoolId === 'pending' || appUser.schoolId === 'school_default')
-  ) return (
-    <Routes>
-      <Route path="/onboarding" element={<OnboardingWizard />} />
-      <Route path="*" element={<Navigate to="/onboarding" replace />} />
     </Routes>
   )
   // Super-admin panel (accesible para el dueño del SaaS, sin importar el rol)
@@ -114,6 +104,16 @@ function AppRoutes() {
       <Route path="*" element={<NotFound />} />
     </Routes>
   )
+  // Admin con escuela pendiente → redirigir a onboarding
+  if (
+    appUser.role === 'admin' &&
+    (appUser.schoolId === 'pending' || appUser.schoolId === 'school_default')
+  ) return (
+    <Routes>
+      <Route path="/onboarding" element={<OnboardingWizard />} />
+      <Route path="*" element={<Navigate to="/onboarding" replace />} />
+    </Routes>
+  )
   // Cuenta pendiente de asignación a escuela (no admin)
   if (
     (appUser.schoolId === 'pending' || appUser.schoolId === 'school_default') &&
@@ -121,6 +121,7 @@ function AppRoutes() {
   ) return <PendingSchool />
   if (appUser.role === 'admin') return (
     <Routes>
+      <Route path="/legal" element={<Legal />} />
       <Route path="/" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
         <Route path="payments" element={<AdminPayments />} />
@@ -178,6 +179,7 @@ function AppRoutes() {
         <Route path="tasks" element={<TeacherTasks />} />
         <Route path="schedules" element={<TeacherSchedules />} />
         <Route path="reportcards" element={<TeacherReportCards />} />
+        <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<NotFound />} />
     </Routes>

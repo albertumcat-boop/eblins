@@ -42,8 +42,8 @@ function Section({ id, title, children }: { id: string; title: string; children:
   )
 }
 
-function P({ children }: { children: React.ReactNode }) {
-  return <p style={{ marginBottom: 12 }}>{children}</p>
+function P({ children, style }: { children: React.ReactNode; style?: React.CSSProperties }) {
+  return <p style={{ marginBottom: 12, ...style }}>{children}</p>
 }
 
 function Ul({ items }: { items: string[] }) {

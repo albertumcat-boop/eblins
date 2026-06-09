@@ -3,7 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import {
   getStudentsByRepresentative, createStudent, generateMonthlyPayments,
-  checkAndCreatePaymentReminders, getPaymentsBySchool, getNotificationsByUser,
+  checkAndCreatePaymentReminders, getPaymentsByRepresentative, getNotificationsByUser,
 } from '@/services/db'
 import { Link } from 'react-router-dom'
 import { format, differenceInDays } from 'date-fns'
@@ -56,9 +56,9 @@ export default function RepresentativeDashboard() {
   })
 
   const { data: allPayments = [] } = useQuery({
-    queryKey: ['payments', appUser?.schoolId],
-    queryFn: () => getPaymentsBySchool(appUser!.schoolId, 500),
-    enabled: !!appUser?.schoolId,
+    queryKey: ['payments', appUser?.schoolId, appUser?.id],
+    queryFn: () => getPaymentsByRepresentative(appUser!.schoolId, appUser!.id),
+    enabled: !!appUser?.schoolId && !!appUser?.id,
   })
 
   const { data: notifications = [] } = useQuery({

@@ -3,7 +3,7 @@ import { useAuth } from '@/context/AuthContext'
 import { db } from '@/services/firebase'
 import {
   collection, addDoc, query, where, orderBy, onSnapshot,
-  serverTimestamp, getDocs, updateDoc, doc, setDoc
+  serverTimestamp, getDocs, updateDoc, doc, setDoc, limit
 } from 'firebase/firestore'
 import { format, isToday, isYesterday } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -54,8 +54,8 @@ export default function Chat() {
   useEffect(() => {
     if (!appUser) return
     const q = isAdmin
-      ? query(collection(db, 'conversations'), where('schoolId', '==', appUser.schoolId), orderBy('updatedAt', 'desc'))
-      : query(collection(db, 'conversations'), where('participants', 'array-contains', appUser.id), orderBy('updatedAt', 'desc'))
+      ? query(collection(db, 'conversations'), where('schoolId', '==', appUser.schoolId), orderBy('updatedAt', 'desc'), limit(50))
+      : query(collection(db, 'conversations'), where('participants', 'array-contains', appUser.id), orderBy('updatedAt', 'desc'), limit(50))
     return onSnapshot(q, snap => setConversations(snap.docs.map(d => ({ id: d.id, ...d.data() }))))
   }, [appUser?.id])
 
@@ -101,12 +101,12 @@ export default function Chat() {
     setText(e.target.value)
     if (!isTyping) {
       setIsTyping(true)
-      updateTypingStatus(true)
+      updateTypingStatus(true).catch(() => {})
     }
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false)
-      updateTypingStatus(false)
+      updateTypingStatus(false).catch(() => {})
     }, 2000)
   }
 

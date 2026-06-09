@@ -8,14 +8,15 @@ import toast from 'react-hot-toast'
 import { Plus, Save, BookOpen, X, Download, Filter } from 'lucide-react'
 import type { Student } from '@/types'
 
-const PERIODS = ['1er Lapso', '2do Lapso', '3er Lapso', 'Final']
+const LAPSOS = ['1', '2', '3']
+const LAPSO_LABELS: Record<string, string> = { '1': '1er Lapso', '2': '2do Lapso', '3': '3er Lapso' }
 const SUBJECTS = ['Matemáticas','Lengua y Literatura','Ciencias Naturales','Ciencias Sociales','Inglés','Educación Física','Arte','Computación']
 
 export default function TeacherGrades() {
   const { appUser } = useAuth()
   const qc = useQueryClient()
   const [selectedStudent, setSelectedStudent] = useState('')
-  const [selectedPeriod, setSelectedPeriod] = useState('1er Lapso')
+  const [selectedLapso, setSelectedLapso] = useState('1')
   const [grades, setGrades] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -41,14 +42,15 @@ export default function TeacherGrades() {
       (!filterSection || s.section === filterSection)
     ), [students, filterGrade, filterSection])
 
-  // Cargar todas las notas del período para los estudiantes filtrados
+  // Cargar todas las notas del lapso para los estudiantes filtrados
+  // Schema: un documento por alumno+materia+lapso con campos { studentId, subject, score, lapso, ... }
   const { data: allGrades = [] } = useQuery({
-    queryKey: ['allGrades', appUser?.schoolId, selectedPeriod],
+    queryKey: ['allGrades', appUser?.schoolId, selectedLapso],
     queryFn: async () => {
       if (!appUser?.schoolId) return []
       const q = query(collection(db, 'grades'),
         where('schoolId', '==', appUser.schoolId),
-        where('period', '==', selectedPeriod))
+        where('lapso', '==', selectedLapso))
       const snap = await getDocs(q)
       return snap.docs.map(d => ({ id: d.id, ...d.data() as any }))
     },
@@ -57,21 +59,25 @@ export default function TeacherGrades() {
 
   // Notas del estudiante seleccionado (para modal)
   const { data: existingGrades = [] } = useQuery({
-    queryKey: ['grades', selectedStudent, selectedPeriod],
+    queryKey: ['grades', selectedStudent, selectedLapso],
     queryFn: async () => {
       if (!selectedStudent) return []
       const q = query(collection(db, 'grades'),
         where('studentId', '==', selectedStudent),
-        where('period', '==', selectedPeriod))
+        where('lapso', '==', selectedLapso))
       const snap = await getDocs(q)
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => ({ id: d.id, ...d.data() as any }))
     },
     enabled: !!selectedStudent,
   })
 
+  // Construir mapa { studentId: { subject: score } } agregando los documentos individuales
   const gradesByStudent = useMemo(() => {
-    const map: Record<string, any> = {}
-    allGrades.forEach((g: any) => { map[g.studentId] = g })
+    const map: Record<string, Record<string, any>> = {}
+    allGrades.forEach((g: any) => {
+      if (!map[g.studentId]) map[g.studentId] = {}
+      map[g.studentId][g.subject] = g.score
+    })
     return map
   }, [allGrades])
 
@@ -84,20 +90,25 @@ export default function TeacherGrades() {
     if (!selectedStudent) return
     setSaving(true)
     try {
-      const existing = existingGrades[0] as any
-      const data = {
-        studentId:  selectedStudent,
-        schoolId:   appUser!.schoolId,
-        teacherId:  appUser!.id,
-        teacherName: appUser!.displayName,
-        period:     selectedPeriod,
-        grades,
-        updatedAt:  serverTimestamp(),
-      }
-      if (existing) {
-        await updateDoc(doc(db, 'grades', existing.id), data)
-      } else {
-        await addDoc(collection(db, 'grades'), { ...data, createdAt: serverTimestamp() })
+      for (const [subject, score] of Object.entries(grades)) {
+        if (!score) continue
+        const existing = existingGrades.find((g: any) =>
+          g.studentId === selectedStudent && g.subject === subject && g.lapso === selectedLapso
+        )
+        if (existing) {
+          await updateDoc(doc(db, 'grades', existing.id), { score, updatedAt: serverTimestamp() })
+        } else {
+          await addDoc(collection(db, 'grades'), {
+            schoolId:  appUser!.schoolId,
+            studentId: selectedStudent,
+            subject,
+            score,
+            lapso:     selectedLapso,
+            teacherId: appUser!.id,
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+          })
+        }
       }
       toast.success('Notas guardadas')
       qc.invalidateQueries({ queryKey: ['grades'] })
@@ -109,23 +120,28 @@ export default function TeacherGrades() {
 
   const openModal = (studentId: string) => {
     setSelectedStudent(studentId)
-    const existing = (gradesByStudent[studentId]) as any
-    setGrades(existing?.grades || {})
+    // Pre-llenar con notas existentes del mapa agregado
+    const existing = gradesByStudent[studentId] || {}
+    const preloaded: Record<string, string> = {}
+    SUBJECTS.forEach(sub => {
+      if (existing[sub] !== undefined) preloaded[sub] = String(existing[sub])
+    })
+    setGrades(preloaded)
     setShowModal(true)
   }
 
   const exportCSV = () => {
     const header = ['Nombre', 'Grado', 'Sección', ...SUBJECTS]
     const rows = filteredStudents.map(s => {
-      const g = gradesByStudent[s.id]?.grades || {}
-      return [s.fullName, s.grade, s.section, ...SUBJECTS.map(sub => g[sub] || '')]
+      const g = gradesByStudent[s.id] || {}
+      return [s.fullName, s.grade, s.section, ...SUBJECTS.map(sub => g[sub] !== undefined ? String(g[sub]) : '')]
     })
     const csv = [header, ...rows].map(r => r.map(c => `"${c}"`).join(',')).join('\n')
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `notas_${selectedPeriod.replace(/\s/g, '_')}.csv`
+    a.download = `notas_lapso_${selectedLapso}.csv`
     a.click()
     URL.revokeObjectURL(url)
   }
@@ -140,14 +156,14 @@ export default function TeacherGrades() {
         </button>
       </div>
 
-      {/* Selector de período */}
+      {/* Selector de lapso */}
       <div className="flex gap-2 flex-wrap">
-        {PERIODS.map(p => (
-          <button key={p} onClick={() => setSelectedPeriod(p)}
+        {LAPSOS.map(l => (
+          <button key={l} onClick={() => setSelectedLapso(l)}
             className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${
-              selectedPeriod === p ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 text-slate-700 hover:border-purple-300'
+              selectedLapso === l ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 text-slate-700 hover:border-purple-300'
             }`}>
-            {p}
+            {LAPSO_LABELS[l]}
           </button>
         ))}
       </div>
@@ -178,7 +194,7 @@ export default function TeacherGrades() {
       {/* Indicador de progreso */}
       <div className="bg-white rounded-xl border border-slate-200 p-4">
         <div className="flex items-center justify-between mb-2">
-          <p className="text-sm font-medium text-slate-700">Notas cargadas en {selectedPeriod}</p>
+          <p className="text-sm font-medium text-slate-700">Notas cargadas en {LAPSO_LABELS[selectedLapso]}</p>
           <span className="text-sm font-bold text-purple-600">{withGrades.length}/{filteredStudents.length} ({progressPct}%)</span>
         </div>
         <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -191,7 +207,7 @@ export default function TeacherGrades() {
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
           <p className="text-sm text-slate-500">
-            Mostrando <strong>{filteredStudents.length}</strong> estudiantes — período <strong>{selectedPeriod}</strong>
+            Mostrando <strong>{filteredStudents.length}</strong> estudiantes — {LAPSO_LABELS[selectedLapso]}
           </p>
         </div>
 
@@ -212,7 +228,7 @@ export default function TeacherGrades() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredStudents.map(s => {
-                const g = gradesByStudent[s.id]?.grades || {}
+                const g = gradesByStudent[s.id] || {}
                 const hasGrades = !!gradesByStudent[s.id]
                 return (
                   <tr key={s.id} className="hover:bg-slate-50 transition-colors">
@@ -262,7 +278,7 @@ export default function TeacherGrades() {
               <div>
                 <h3 className="font-bold text-slate-800">Cargar notas</h3>
                 <p className="text-xs text-slate-400">
-                  {students.find(s => s.id === selectedStudent)?.fullName} · {selectedPeriod}
+                  {students.find(s => s.id === selectedStudent)?.fullName} · {LAPSO_LABELS[selectedLapso]}
                 </p>
               </div>
               <button onClick={() => setShowModal(false)}><X size={20} className="text-slate-400"/></button>

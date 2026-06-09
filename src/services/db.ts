@@ -373,6 +373,18 @@ export const createSchool = async (data: {
 export const setUserSchool = (userId: string, schoolId: string, role: string) =>
   updateDoc(doc(db, 'users', userId), { schoolId, role })
 
+export const getPaymentsByRepresentative = async (schoolId: string, representativeId: string) => {
+  const q = query(
+    collection(db, 'payments'),
+    where('schoolId', '==', schoolId),
+    where('representativeId', '==', representativeId),
+    orderBy('createdAt', 'desc'),
+    limit(50)
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map(d => fromDoc<Payment>(d))
+}
+
 export const applyLateFees = async (schoolId: string) => {
   const school = await getSchool(schoolId)
   if (!school) return

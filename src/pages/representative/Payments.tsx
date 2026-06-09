@@ -119,8 +119,8 @@ function NewPaymentModal({ onClose, schoolId, representativeId, students, paymen
       toast.error('Completa todos los campos y adjunta el comprobante')
       return
     }
-    if (form.reference.length !== 4) {
-      toast.error('El número de referencia debe tener exactamente 4 dígitos')
+    if (form.reference.trim().length < 4) {
+      toast.error('Introduce al menos 4 caracteres de referencia')
       return
     }
     setUploading(true)
@@ -246,13 +246,12 @@ function NewPaymentModal({ onClose, schoolId, representativeId, students, paymen
 
             <div>
               <label className="text-sm font-medium text-slate-700 block mb-1.5">
-                Últimos 4 dígitos de la referencia
+                Referencia del pago
               </label>
-              <input maxLength={4}
-                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono tracking-widest text-center text-lg"
-                placeholder="1234" value={form.reference} onChange={set('reference')}
-                onKeyPress={(e) => { if (!/[0-9]/.test(e.key)) e.preventDefault() }}/>
-              <p className="text-xs text-slate-400 mt-1">Solo números, exactamente 4 dígitos</p>
+              <input
+                className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
+                placeholder="Ej: 1234 o ABC-78901" value={form.reference} onChange={set('reference')}/>
+              <p className="text-xs text-slate-400 mt-1">Mínimo 4 caracteres (Zelle, Pago Móvil, transferencia, etc.)</p>
             </div>
 
             <div>

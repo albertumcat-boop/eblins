@@ -18,6 +18,21 @@
       {"fieldPath": "representativeId", "order": "ASCENDING"},
       {"fieldPath": "status", "order": "ASCENDING"}
     ]},
+    { "collectionGroup": "payments", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "representativeId", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "grades", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "grade", "order": "ASCENDING"},
+      {"fieldPath": "section", "order": "ASCENDING"},
+      {"fieldPath": "lapso", "order": "ASCENDING"}
+    ]},
+    { "collectionGroup": "grades", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "studentId", "order": "ASCENDING"},
+      {"fieldPath": "lapso", "order": "ASCENDING"}
+    ]},
     { "collectionGroup": "students", "queryScope": "COLLECTION", "fields": [
       {"fieldPath": "schoolId", "order": "ASCENDING"},
       {"fieldPath": "grade", "order": "ASCENDING"},
