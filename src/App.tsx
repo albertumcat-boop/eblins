@@ -50,6 +50,10 @@ import TeacherTasks from '@/pages/teacher/Tasks'
 import TeacherSchedules from '@/pages/representative/Schedules'
 import Chat from '@/pages/Chat'
 import InstallPrompt from '@/components/InstallPrompt'
+import OnboardingWizard from '@/pages/onboarding/OnboardingWizard'
+import PendingSchool from '@/pages/PendingSchool'
+import NotFound from '@/pages/NotFound'
+import SuperAdminPanel from '@/pages/superadmin/SuperAdminPanel'
 
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
@@ -65,9 +69,51 @@ function AppRoutes() {
       <Route path="/" element={<Landing />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
+      <Route path="/onboarding" element={<OnboardingWizard />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
+  // Admin con escuela pendiente → redirigir a onboarding
+  if (
+    appUser.role === 'admin' &&
+    (appUser.schoolId === 'pending' || appUser.schoolId === 'school_default')
+  ) return (
+    <Routes>
+      <Route path="/onboarding" element={<OnboardingWizard />} />
+      <Route path="*" element={<Navigate to="/onboarding" replace />} />
+    </Routes>
+  )
+  // Super-admin panel (accesible para el dueño del SaaS, sin importar el rol)
+  if (appUser.email === 'albert.umcat@gmail.com') return (
+    <Routes>
+      <Route path="/superadmin" element={<SuperAdminPanel />} />
+      {/* También puede acceder al panel de admin normal */}
+      <Route path="/" element={<AdminLayout />}>
+        <Route index element={<AdminDashboard />} />
+        <Route path="payments" element={<AdminPayments />} />
+        <Route path="students" element={<AdminStudents />} />
+        <Route path="users" element={<AdminUsers />} />
+        <Route path="reports" element={<AdminReports />} />
+        <Route path="messages" element={<AdminMessages />} />
+        <Route path="settings" element={<AdminSettings />} />
+        <Route path="audit" element={<AdminAuditLog />} />
+        <Route path="calendar" element={<AdminCalendar />} />
+        <Route path="meetings" element={<AdminMeetings />} />
+        <Route path="schedules" element={<AdminSchedules />} />
+        <Route path="supplies" element={<AdminSupplies />} />
+        <Route path="import" element={<AdminImport />} />
+        <Route path="stripe-config" element={<AdminStripeConfig />} />
+        <Route path="email-queue" element={<AdminEmailQueue />} />
+        <Route path="chat" element={<Chat />} />
+      </Route>
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  )
+  // Cuenta pendiente de asignación a escuela (no admin)
+  if (
+    (appUser.schoolId === 'pending' || appUser.schoolId === 'school_default') &&
+    appUser.role !== 'admin'
+  ) return <PendingSchool />
   if (appUser.role === 'admin') return (
     <Routes>
       <Route path="/" element={<AdminLayout />}>
@@ -88,7 +134,7 @@ function AppRoutes() {
         <Route path="email-queue" element={<AdminEmailQueue />} />
         <Route path="chat" element={<Chat />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
   if (appUser.role === 'representative') return (
@@ -112,7 +158,7 @@ function AppRoutes() {
         <Route path="meetings" element={<RepMeetings />} />
         <Route path="chat" element={<Chat />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
   return (
@@ -128,7 +174,7 @@ function AppRoutes() {
         <Route path="schedules" element={<TeacherSchedules />} />
         <Route path="reportcards" element={<TeacherReportCards />} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   )
 }

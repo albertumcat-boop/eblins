@@ -362,6 +362,17 @@ export const getMeetingsBySchool = async (schoolId: string) => {
 }
 export const deleteMeeting = (id: string) => deleteDoc(doc(db, 'meetings', id))
 
+export const createSchool = async (data: {
+  name: string; address?: string; phone?: string; city?: string; logoUrl?: string
+  settings: any
+}) => {
+  const r = await addDoc(collection(db, 'schools'), { ...data, createdAt: serverTimestamp() })
+  return r.id
+}
+
+export const setUserSchool = (userId: string, schoolId: string, role: string) =>
+  updateDoc(doc(db, 'users', userId), { schoolId, role })
+
 export const applyLateFees = async (schoolId: string) => {
   const school = await getSchool(schoolId)
   if (!school) return
@@ -401,3 +412,4 @@ export const applyLateFees = async (schoolId: string) => {
     })
   }
 }
+
