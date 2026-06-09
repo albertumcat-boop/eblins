@@ -7,6 +7,9 @@ import { Search } from 'lucide-react'
 export default function TeacherStudents() {
   const { appUser } = useAuth()
   const [search, setSearch] = useState('')
+  // INTENCIONAL: el docente necesita ver todos los estudiantes de la escuela para poder
+  // buscarlos y asignarles notas/asistencia. Este acceso amplio es aceptable a nivel de negocio;
+  // la restricción real se aplica en Firestore Security Rules.
   const { data: students = [], isLoading } = useQuery({
     queryKey: ['students', appUser?.schoolId],
     queryFn: () => getStudentsBySchool(appUser!.schoolId),

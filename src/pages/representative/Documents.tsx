@@ -23,7 +23,7 @@ export default function RepresentativeDocuments() {
 
   const { data: students = [] } = useQuery({
     queryKey: ['my-students', appUser?.id],
-    queryFn: () => getStudentsByRepresentative(appUser!.id),
+    queryFn: () => getStudentsByRepresentative(appUser!.id, appUser!.schoolId),
     enabled: !!appUser?.id,
   })
   const { data: school } = useQuery({

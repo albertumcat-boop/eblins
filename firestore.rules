@@ -22,19 +22,25 @@ service cloud.firestore {
       allow delete: if isSuperAdmin();
     }
 
-    // Users
+    // Users — FIX 9: admin solo puede actualizar usuarios de su misma escuela
     match /users/{userId} {
       allow read: if isSignedIn() && (uid() == userId || (isAdmin() && belongsToSchool(resource.data.schoolId)) || isSuperAdmin());
       allow create: if isSignedIn() && uid() == userId;
-      allow update: if isSignedIn() && (uid() == userId || isAdmin());
+      allow update: if isSignedIn() && (
+        uid() == userId ||
+        (isAdmin() && belongsToSchool(resource.data.schoolId)) ||
+        isSuperAdmin()
+      );
       allow delete: if isSuperAdmin();
     }
 
-    // Students
+    // Students — FIX 1: permitir create a representantes con restricciones
     match /students/{studentId} {
       allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
       allow write: if isAdmin() && belongsToSchool(resource.data.schoolId);
-      allow create: if isAdmin();
+      allow create: if (isAdmin() && belongsToSchool(request.resource.data.schoolId)) ||
+        (isRep() && request.resource.data.schoolId == userSchool() &&
+         request.resource.data.representativeId == uid());
     }
 
     // Payments
@@ -60,46 +66,70 @@ service cloud.firestore {
     }
 
     // Announcements
+    // FIX: create now enforces schoolId == userSchool() to prevent cross-school injection
     match /announcements/{announcementId} {
-      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
-      allow write: if isTeacher() && belongsToSchool(resource.data.schoolId);
-      allow create: if isTeacher() || isAdmin();
-      allow update: if isAdmin() && belongsToSchool(resource.data.schoolId);
-      allow delete: if (isTeacher() && resource.data.teacherId == uid()) || isAdmin();
+      allow read:   if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow create: if (isTeacher() || isAdmin()) && request.resource.data.schoolId == userSchool();
+      allow update: if (isAdmin() && belongsToSchool(resource.data.schoolId)) ||
+                       (isTeacher() && resource.data.teacherId == uid() && belongsToSchool(resource.data.schoolId));
+      allow delete: if (isAdmin() && belongsToSchool(resource.data.schoolId)) ||
+                       (isTeacher() && resource.data.teacherId == uid() && belongsToSchool(resource.data.schoolId));
     }
 
-    // Notifications — solo el destinatario y admin
+    // Notifications — FIX 7: create requiere schoolId correcto
     match /notifications/{notifId} {
       allow read: if isSignedIn() && (resource.data.userId == uid() || isAdmin());
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.schoolId == userSchool();
       allow update: if isSignedIn() && resource.data.userId == uid();
       allow delete: if isAdmin();
     }
 
     // Attendance
+    // Schema: documentos individuales por alumno+fecha con campo studentId.
+    // La Rule verifica que el representante sea el dueño del alumno via get().
+    // Para documentos legacy con records:{[studentId]:status} sin studentId raíz,
+    // el filtrado en frontend es la segunda línea de defensa.
     match /attendance/{attendanceId} {
-      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
-      allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
-      allow create: if isTeacher() || isAdmin();
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (
+        isAdmin() || isTeacher() ||
+        (isRep() && (
+          // Documentos con studentId en raíz (schema nuevo)
+          (resource.data.studentId != null &&
+           get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.representativeId == uid()) ||
+          // Documentos sin studentId en raíz (schema legacy por grado/sección) — solo mismo schoolId
+          resource.data.studentId == null
+        ))
+      );
+      allow create: if (isTeacher() || isAdmin()) && belongsToSchool(request.resource.data.schoolId);
+      allow update: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+      allow delete: if isAdmin() && belongsToSchool(resource.data.schoolId);
     }
 
-    // Behavior / Conduct
+    // Behavior / Conduct — FIX 3: lectura del representante solo a sus hijos
     match /behavior/{behaviorId} {
-      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (
+        isAdmin() || isTeacher() ||
+        (isRep() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.representativeId == uid())
+      );
       allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
-      allow create: if isTeacher() || isAdmin();
+      allow create: if (isTeacher() || isAdmin()) && belongsToSchool(request.resource.data.schoolId);
     }
 
-    // Grades
+    // Grades — FIX 2: lectura del representante solo a sus hijos
     match /grades/{gradeId} {
-      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (
+        isAdmin() || isTeacher() ||
+        (isRep() && get(/databases/$(database)/documents/students/$(resource.data.studentId)).data.representativeId == uid())
+      );
       allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+      allow create: if (isTeacher() || isAdmin()) && belongsToSchool(request.resource.data.schoolId);
     }
 
-    // Tasks
+    // Tasks — FIX 10: create requiere belongsToSchool
     match /tasks/{taskId} {
       allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId);
       allow write: if (isTeacher() || isAdmin()) && belongsToSchool(resource.data.schoolId);
+      allow create: if (isTeacher() || isAdmin()) && belongsToSchool(request.resource.data.schoolId);
     }
 
     // Events / Calendar
@@ -126,19 +156,21 @@ service cloud.firestore {
       allow write: if isAdmin() && belongsToSchool(resource.data.schoolId);
     }
 
-    // Audit logs
+    // Audit logs — FIX 5: create requiere schoolId correcto
     match /auditLogs/{logId} {
       allow read: if isAdmin() && belongsToSchool(resource.data.schoolId);
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.schoolId == userSchool();
       allow update, delete: if false;
     }
 
-    // Conversations (Chat)
+    // Conversations (Chat) — FIX 8: create requiere schoolId y participante
     match /conversations/{convId} {
       allow read: if isSignedIn() && (
         uid() in resource.data.participants || isAdmin()
       );
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() &&
+        request.resource.data.schoolId == userSchool() &&
+        uid() in request.resource.data.participants;
       allow update: if isSignedIn() && uid() in resource.data.participants;
 
       match /messages/{messageId} {
@@ -148,10 +180,10 @@ service cloud.firestore {
       }
     }
 
-    // Email Queue
+    // Email Queue — FIX 6: create requiere schoolId correcto
     match /emailQueue/{jobId} {
       allow read, write: if isAdmin() && belongsToSchool(resource.data.schoolId);
-      allow create: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.schoolId == userSchool();
     }
   }
 }

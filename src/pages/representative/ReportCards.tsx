@@ -15,20 +15,23 @@ export default function RepresentativeReportCards() {
 
   const { data: students = [] } = useQuery({
     queryKey: ['my-students', appUser?.id],
-    queryFn: () => getStudentsByRepresentative(appUser!.id),
+    queryFn: () => getStudentsByRepresentative(appUser!.id, appUser!.schoolId),
     enabled: !!appUser?.id,
   })
 
   const { data: reportCards = [] } = useQuery({
-    queryKey: ['rep-reportcards', selectedStudentId],
+    queryKey: ['rep-reportcards', selectedStudentId, appUser?.schoolId],
     queryFn: async () => {
+      // Include schoolId filter for defense-in-depth: prevents reading report cards
+      // from students of other schools if studentId is manipulated
       const q = query(collection(db, 'reportCards'),
+        where('schoolId', '==', appUser!.schoolId),
         where('studentId', '==', selectedStudentId),
         orderBy('createdAt', 'desc'))
       const snap = await getDocs(q)
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     },
-    enabled: !!selectedStudentId,
+    enabled: !!selectedStudentId && !!appUser?.schoolId,
   })
 
   return (

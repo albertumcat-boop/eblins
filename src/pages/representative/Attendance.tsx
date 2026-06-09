@@ -21,28 +21,45 @@ export default function RepresentativeAttendance() {
 
   const { data: students = [] } = useQuery({
     queryKey: ['my-students', appUser?.id],
-    queryFn: () => getStudentsByRepresentative(appUser!.id),
+    queryFn: () => getStudentsByRepresentative(appUser!.id, appUser!.schoolId),
     enabled: !!appUser?.id,
   })
 
+  // selectedStudent's grade/section for narrowing the server query
+  const selectedStudent = students.find(s => s.id === selectedStudentId)
+
   const { data: records = [] } = useQuery({
-    queryKey: ['rep-attendance', selectedStudentId],
+    queryKey: ['rep-attendance', selectedStudentId, selectedStudent?.grade, selectedStudent?.section],
     queryFn: async () => {
+      if (!selectedStudent) return []
+      // Query scoped to the student's specific grade/section — avoids downloading all school data
       const q = query(collection(db, 'attendance'),
         where('schoolId', '==', appUser!.schoolId),
+        where('grade', '==', selectedStudent.grade),
+        where('section', '==', selectedStudent.section),
         orderBy('date', 'desc'), limit(30))
       const snap = await getDocs(q)
+      // Map to expose ONLY the selected student's status, not the full records map
       return snap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter((r: any) => r.records?.[selectedStudentId])
+        .filter(d => d.data().records?.[selectedStudentId])
+        .map(d => {
+          const data = d.data()
+          return {
+            id: d.id,
+            date: data.date,
+            studentId: selectedStudentId,
+            status: data.records?.[selectedStudentId] ?? data.status,
+            notes: data.notes ?? '',
+          }
+        })
     },
-    enabled: !!selectedStudentId,
+    enabled: !!selectedStudentId && !!selectedStudent,
   })
 
   const counts = {
-    present: records.filter((r: any) => r.records[selectedStudentId] === 'present').length,
-    absent:  records.filter((r: any) => r.records[selectedStudentId] === 'absent').length,
-    late:    records.filter((r: any) => r.records[selectedStudentId] === 'late').length,
+    present: records.filter((r: any) => r.status === 'present').length,
+    absent:  records.filter((r: any) => r.status === 'absent').length,
+    late:    records.filter((r: any) => r.status === 'late').length,
   }
 
   return (
@@ -83,7 +100,7 @@ export default function RepresentativeAttendance() {
             ) : (
               <div className="divide-y divide-slate-100">
                 {(records as any[]).map(r => {
-                  const status = r.records[selectedStudentId]
+                  const status = r.status
                   const cfg = STATUS_CONFIG[status]
                   const Icon = cfg?.icon
                   return (

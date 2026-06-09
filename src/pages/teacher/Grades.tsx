@@ -156,6 +156,13 @@ export default function TeacherGrades() {
         </button>
       </div>
 
+      {/* Advertencia de grado diferente al asignado */}
+      {appUser?.assignedGrade && filterGrade && filterGrade !== appUser.assignedGrade && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+          ⚠️ Estás viendo datos de un grado diferente al asignado en tu perfil.
+        </div>
+      )}
+
       {/* Selector de lapso */}
       <div className="flex gap-2 flex-wrap">
         {LAPSOS.map(l => (

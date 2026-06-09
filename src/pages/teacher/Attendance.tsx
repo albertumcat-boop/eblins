@@ -122,6 +122,13 @@ export default function TeacherAttendance() {
         </button>
       </div>
 
+      {/* Advertencia de grado diferente al asignado */}
+      {appUser?.assignedGrade && gradeFilter && gradeFilter !== appUser.assignedGrade && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+          ⚠️ Estás viendo datos de un grado diferente al asignado en tu perfil.
+        </div>
+      )}
+
       {/* Filters */}
       <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-4 items-end">
         <div>

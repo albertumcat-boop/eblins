@@ -23,7 +23,7 @@ export default function RepresentativeBehavior() {
 
   const { data: students = [] } = useQuery({
     queryKey: ['my-students', appUser?.id],
-    queryFn: () => getStudentsByRepresentative(appUser!.id),
+    queryFn: () => getStudentsByRepresentative(appUser!.id, appUser!.schoolId),
     enabled: !!appUser?.id,
   })
 
@@ -31,6 +31,7 @@ export default function RepresentativeBehavior() {
     queryKey: ['rep-behavior', selectedStudentId],
     queryFn: async () => {
       const q = query(collection(db, 'behavior'),
+        where('schoolId', '==', appUser!.schoolId),
         where('studentId', '==', selectedStudentId),
         orderBy('date', 'desc'))
       const snap = await getDocs(q)

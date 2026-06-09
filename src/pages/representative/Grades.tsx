@@ -17,7 +17,7 @@ export default function RepresentativeGrades() {
 
   const { data: students = [] } = useQuery({
     queryKey: ['my-students', appUser?.id],
-    queryFn: () => getStudentsByRepresentative(appUser!.id),
+    queryFn: () => getStudentsByRepresentative(appUser!.id, appUser!.schoolId),
     enabled: !!appUser?.id,
   })
 
@@ -25,6 +25,7 @@ export default function RepresentativeGrades() {
     queryKey: ['rep-grades', selectedStudentId, selectedPeriod],
     queryFn: async () => {
       const q = query(collection(db, 'grades'),
+        where('schoolId', '==', appUser!.schoolId),
         where('studentId', '==', selectedStudentId),
         where('period', '==', selectedPeriod))
       const snap = await getDocs(q)

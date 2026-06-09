@@ -33,8 +33,10 @@ export const createStudent = async (data: Omit<Student, 'id' | 'createdAt'>) => 
 export const getStudent = async (id: string) => {
   const s = await getDoc(doc(db, 'students', id)); return s.exists() ? fromDoc<Student>(s) : null
 }
-export const getStudentsByRepresentative = async (repId: string) => {
-  const q = query(collection(db, 'students'), where('representativeId', '==', repId))
+export const getStudentsByRepresentative = async (repId: string, schoolId?: string) => {
+  const filters = [where('representativeId', '==', repId)]
+  if (schoolId) filters.push(where('schoolId', '==', schoolId))
+  const q = query(collection(db, 'students'), ...filters)
   return (await getDocs(q)).docs.map(d => fromDoc<Student>(d))
 }
 export const getStudentsBySchool = async (schoolId: string) => {
