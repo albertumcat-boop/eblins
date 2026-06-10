@@ -9,7 +9,7 @@ import { storage } from '@/services/firebase'
 import toast from 'react-hot-toast'
 import {
   Save, Plus, Trash2, CreditCard, Calendar, ToggleLeft, ToggleRight,
-  School, Bell, AlertCircle, BookOpen, Upload, Image as ImageIcon
+  School, Bell, AlertCircle, BookOpen, Upload, Image as ImageIcon, Copy, Check, Users
 } from 'lucide-react'
 
 const PAYMENT_METHOD_TYPES = [
@@ -78,6 +78,14 @@ export default function AdminSettings() {
   const schoolId = appUser?.schoolId || ''
   const qc = useQueryClient()
   const logoInputRef = useRef<HTMLInputElement>(null)
+  const [codeCopied, setCodeCopied] = useState(false)
+
+  const copySchoolCode = () => {
+    navigator.clipboard.writeText(schoolId)
+    setCodeCopied(true)
+    toast.success('Código copiado')
+    setTimeout(() => setCodeCopied(false), 2500)
+  }
 
   const { data: school } = useQuery({
     queryKey: ['school', schoolId],
@@ -279,6 +287,32 @@ export default function AdminSettings() {
   return (
     <div className="space-y-6 max-w-2xl">
       <h1 className="text-2xl font-bold text-slate-800">Configuración</h1>
+
+      {/* Código de inscripción — para compartir con representantes */}
+      <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 text-white shadow-lg">
+        <div className="flex items-start gap-4">
+          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center shrink-0">
+            <Users size={20} className="text-white"/>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-white text-sm">Código de inscripción para representantes</p>
+            <p className="text-blue-100 text-xs mt-0.5 mb-3">
+              Comparte este código con los padres y representantes para que puedan registrarse y vincularse a este colegio.
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5 font-mono text-sm text-white tracking-wide select-all">
+                {schoolId}
+              </div>
+              <button
+                onClick={copySchoolCode}
+                className="flex items-center gap-2 bg-white text-blue-700 px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors shrink-0">
+                {codeCopied ? <Check size={15}/> : <Copy size={15}/>}
+                {codeCopied ? 'Copiado' : 'Copiar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* 1. Información del colegio */}
       <Section icon={School} title="Información del colegio" subtitle="Nombre, dirección y logo que aparecen en los reportes">

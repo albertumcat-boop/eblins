@@ -7,8 +7,10 @@ import {
 } from 'recharts'
 import { format, startOfMonth, endOfMonth, subMonths, isWithinInterval } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { DollarSign, AlertCircle, Clock, Users, TrendingUp, TrendingDown, GraduationCap, CheckCircle } from 'lucide-react'
+import { DollarSign, AlertCircle, Clock, Users, TrendingUp, TrendingDown, GraduationCap, CheckCircle, Copy, Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import toast from 'react-hot-toast'
 
 const toDate = (v: any): Date => v?.toDate ? v.toDate() : new Date(v)
 
@@ -47,6 +49,13 @@ function StatCard({ icon: Icon, label, value, sub, color = 'blue', trend }: {
 export default function AdminDashboard() {
   const { appUser } = useAuth()
   const schoolId = appUser?.schoolId || ''
+  const [codeCopied, setCodeCopied] = useState(false)
+  const copyCode = () => {
+    navigator.clipboard.writeText(schoolId)
+    setCodeCopied(true)
+    toast.success('Código copiado')
+    setTimeout(() => setCodeCopied(false), 2500)
+  }
 
   const { data: payments = [] } = useQuery({
     queryKey: ['payments', schoolId],
@@ -146,6 +155,24 @@ export default function AdminDashboard() {
         <p className="text-slate-500 text-sm mt-1">
           {format(new Date(), "EEEE, d 'de' MMMM yyyy", { locale: es })}
         </p>
+      </div>
+
+      {/* Código de inscripción para representantes */}
+      <div className="bg-blue-600 rounded-2xl px-5 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="text-white font-semibold text-sm">Código de inscripción para representantes</p>
+          <p className="text-blue-200 text-xs mt-0.5">Comparte este código con los padres para que se registren en la app</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="bg-white/15 border border-white/20 rounded-xl px-4 py-2 font-mono text-white text-sm tracking-wide select-all">
+            {schoolId}
+          </span>
+          <button onClick={copyCode}
+            className="flex items-center gap-1.5 bg-white text-blue-700 px-3 py-2 rounded-xl text-sm font-semibold hover:bg-blue-50 transition-colors">
+            {codeCopied ? <Check size={14}/> : <Copy size={14}/>}
+            {codeCopied ? 'Copiado' : 'Copiar'}
+          </button>
+        </div>
       </div>
 
       {/* KPIs principales */}
