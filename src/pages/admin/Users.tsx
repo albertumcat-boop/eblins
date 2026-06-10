@@ -2,8 +2,10 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { getUsersBySchool, updateUserRole, deleteUser, approveUser, rejectUser, createAuditLog } from '@/services/db'
+import { sendPasswordResetEmail } from 'firebase/auth'
+import { auth } from '@/services/firebase'
 import toast from 'react-hot-toast'
-import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
+import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle, CheckCircle, Clock, KeyRound } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AppUser, UserRole } from '@/types'
@@ -95,6 +97,18 @@ export default function AdminUsers() {
     },
     onError: () => toast.error('Error al rechazar'),
   })
+
+  const sendReset = async (email: string, name: string) => {
+    try {
+      await sendPasswordResetEmail(auth, email, {
+        url: window.location.origin + '/login',
+        handleCodeInApp: false,
+      })
+      toast.success('Correo de recuperación enviado a ' + name)
+    } catch {
+      toast.error('No se pudo enviar el correo')
+    }
+  }
 
   const pending = users.filter((u: any) => u.status === 'pending_approval')
   const active  = users.filter((u: any) => u.status !== 'pending_approval')
@@ -188,7 +202,7 @@ export default function AdminUsers() {
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
-                      {['Usuario', 'Correo', 'Rol', 'Registrado', 'Cambiar rol', ''].map((h, i) => (
+                      {['Usuario', 'Correo', 'Rol', 'Registrado', 'Cambiar rol', 'Acciones'].map((h, i) => (
                         <th key={i} className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{h}</th>
                       ))}
                     </tr>
@@ -230,12 +244,20 @@ export default function AdminUsers() {
                           </td>
                           <td className="px-4 py-3">
                             {!isSelf && (
-                              <button
-                                onClick={() => setConfirmDelete(u)}
-                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                                title="Eliminar usuario">
-                                <Trash2 size={14}/>
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <button
+                                  onClick={() => sendReset(u.email, u.displayName)}
+                                  className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Enviar correo de recuperación de contraseña">
+                                  <KeyRound size={14}/>
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDelete(u)}
+                                  className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                  title="Eliminar usuario">
+                                  <Trash2 size={14}/>
+                                </button>
+                              </div>
                             )}
                           </td>
                         </tr>

@@ -1,10 +1,10 @@
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react'
 import {
   onAuthStateChanged, signInWithEmailAndPassword, signInWithPopup,
   signOut, createUserWithEmailAndPassword, updateProfile, sendEmailVerification,
   type User as FirebaseUser,
 } from 'firebase/auth'
-import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'firebase/firestore'
 import { auth, db, googleProvider } from '@/services/firebase'
 import type { AppUser } from '@/types'
 
@@ -24,22 +24,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [appUser, setAppUser] = useState<AppUser | null>(null)
   const [loading, setLoading] = useState(true)
+  const profileUnsubRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
-    return onAuthStateChanged(auth, async (fbUser) => {
+    const unsubAuth = onAuthStateChanged(auth, (fbUser) => {
       setFirebaseUser(fbUser)
+
+      // Cancel any previous profile listener
+      if (profileUnsubRef.current) {
+        profileUnsubRef.current()
+        profileUnsubRef.current = null
+      }
+
       if (fbUser) {
-        try {
-          const snap = await getDoc(doc(db, 'users', fbUser.uid))
-          if (snap.exists()) setAppUser({ id: fbUser.uid, ...snap.data() } as AppUser)
-          else setAppUser(null)
-        } catch (err) {
-          console.error('Error fetching user profile:', err)
-          setAppUser(null)
-        }
-      } else { setAppUser(null) }
-      setLoading(false)
+        // Real-time listener on the user's Firestore profile.
+        // This means when an admin approves/rejects the account,
+        // the user's app updates instantly without needing to re-login.
+        const unsubProfile = onSnapshot(
+          doc(db, 'users', fbUser.uid),
+          (snap) => {
+            if (snap.exists()) setAppUser({ id: fbUser.uid, ...snap.data() } as AppUser)
+            else setAppUser(null)
+            setLoading(false)
+          },
+          (err) => {
+            console.error('Error listening to user profile:', err)
+            setAppUser(null)
+            setLoading(false)
+          }
+        )
+        profileUnsubRef.current = unsubProfile
+      } else {
+        setAppUser(null)
+        setLoading(false)
+      }
     })
+
+    return () => {
+      unsubAuth()
+      if (profileUnsubRef.current) profileUnsubRef.current()
+    }
   }, [])
 
   const signIn = async (email: string, password: string) =>
