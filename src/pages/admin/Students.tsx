@@ -25,7 +25,8 @@ function exportCSV(students: Student[], users: any[]) {
   const header = ['Nombre','Matrícula','Grado','Sección','Año','Representante']
   const rows = students.map(s => {
     const rep = users.find(u => u.id === s.representativeId)
-    return [s.fullName, s.enrollmentCode, s.grade, s.section, s.schoolYear, rep?.displayName || '']
+    const repLabel = rep?.displayName || s.representativeName || s.representativeEmail || ''
+    return [s.fullName, s.enrollmentCode, s.grade, s.section, s.schoolYear, repLabel]
   })
   const csv = [header, ...rows].map(r => r.map(v => `"${v}"`).join(',')).join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -182,7 +183,25 @@ export default function AdminStudents() {
                       <td className="px-4 py-3 text-slate-600">{s.grade}</td>
                       <td className="px-4 py-3 text-slate-600">{s.section}</td>
                       <td className="px-4 py-3 text-slate-500">{s.schoolYear}</td>
-                      <td className="px-4 py-3 text-slate-600">{rep?.displayName || '—'}</td>
+                      <td className="px-4 py-3">
+                        {rep?.displayName ? (
+                          <div>
+                            <span className="text-slate-700 font-medium">{rep.displayName}</span>
+                            {(s as any).representativeRelation && <span className="ml-1.5 text-xs text-slate-400">{(s as any).representativeRelation}</span>}
+                            {(s as any).representativePhone && <p className="text-xs text-slate-400 mt-0.5">{(s as any).representativePhone}</p>}
+                          </div>
+                        ) : (s as any).representativeName ? (
+                          <div>
+                            <span className="text-amber-700 font-medium">{(s as any).representativeName}</span>
+                            {(s as any).representativeRelation && <span className="ml-1.5 text-xs text-slate-400">{(s as any).representativeRelation}</span>}
+                            <span className="ml-1.5 text-xs text-slate-400">(sin cuenta)</span>
+                            {(s as any).representativePhone && <p className="text-xs text-slate-400 mt-0.5">{(s as any).representativePhone}</p>}
+                            {(s as any).representativeEmail && <p className="text-xs text-slate-400 mt-0.5">{(s as any).representativeEmail}</p>}
+                          </div>
+                        ) : (s as any).representativeEmail ? (
+                          <span className="text-xs text-slate-400 italic">{(s as any).representativeEmail}</span>
+                        ) : '—'}
+                      </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
                           <button onClick={() => openEdit(s)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={14}/></button>
@@ -216,7 +235,13 @@ export default function AdminStudents() {
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-slate-800 truncate">{s.fullName}</p>
                   <p className="text-xs text-slate-500">{s.grade} — Sección {s.section} · {s.schoolYear}</p>
-                  {rep && <p className="text-xs text-slate-400 mt-0.5">Rep: {rep.displayName}</p>}
+                  {rep
+                    ? <p className="text-xs text-slate-400 mt-0.5">Rep: {rep.displayName}</p>
+                    : s.representativeName
+                    ? <p className="text-xs text-amber-600 mt-0.5">Rep: {s.representativeName} <span className="text-slate-400">(sin cuenta)</span></p>
+                    : s.representativeEmail
+                    ? <p className="text-xs text-slate-400 mt-0.5 italic">{s.representativeEmail}</p>
+                    : null}
                   <div className="flex items-center gap-1.5 mt-2">
                     <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{s.enrollmentCode}</span>
                     <button

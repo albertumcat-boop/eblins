@@ -22,54 +22,98 @@ const SYSTEM_FIELDS: SystemField[] = [
     label: 'Nombre completo del alumno',
     required: true,
     hint: 'Nombre y apellido del estudiante',
-    keywords: ['nombre', 'alumno', 'estudiante', 'apellido', 'name', 'student', 'completo'],
+    // NOTE: 'nombre' keyword is intentionally NOT here to avoid colliding with rep name column
+    keywords: ['alumno', 'estudiante', 'apellido', 'nombre completo', 'student', 'nombre del alumno'],
   },
   {
     key: 'grade',
     label: 'Grado / Año',
     required: true,
     hint: 'Ej: 1er, 2do, 7mo, 1°, Primero',
-    keywords: ['grado', 'año', 'grade', 'nivel', 'curso', 'year', 'form'],
+    keywords: ['grado', 'grade', 'nivel', 'curso', 'year', 'form'],
   },
   {
     key: 'section',
     label: 'Sección / División',
     required: true,
     hint: 'Ej: A, B, C, Única',
-    keywords: ['seccion', 'sección', 'division', 'división', 'section', 'grupo', 'group', 'aula'],
+    keywords: ['seccion', 'secció', 'division', 'divisió', 'section', 'grupo', 'group', 'aula'],
   },
   {
+    // Email MUST come before name — more specific keywords (email/correo/mail)
     key: 'representativeEmail',
     label: 'Email del representante',
     required: false,
-    hint: 'Correo del padre/madre/representante',
-    keywords: ['email', 'correo', 'mail', 'representante', 'padre', 'madre', 'tutor', 'parent'],
+    hint: 'Correo del padre/madre/representante (clave para vinculación automática)',
+    keywords: ['email', 'correo', 'mail', 'e-mail'],
+  },
+  {
+    key: 'representativeName',
+    label: 'Nombre del representante',
+    required: false,
+    hint: 'Nombre completo del padre/madre/representante',
+    keywords: ['del representante', 'nombre representante', 'padre nombre', 'madre nombre', 'parent name', 'guardian', 'tutor', 'representante', 'padre', 'madre'],
+  },
+  {
+    key: 'representativePhone',
+    label: 'Teléfono del representante',
+    required: false,
+    hint: 'Número de contacto del representante',
+    keywords: ['telefono', 'teléfono', 'phone', 'celular', 'movil', 'móvil', 'contacto', 'tel'],
+  },
+  {
+    key: 'representativeCedula',
+    label: 'Cédula / ID del representante',
+    required: false,
+    hint: 'Número de identificación del representante',
+    keywords: ['cedula', 'cédula', 'dni', 'rif', 'identificacion', 'id', 'ci', 'documento'],
+  },
+  {
+    key: 'representativeRelation',
+    label: 'Parentesco',
+    required: false,
+    hint: 'Relación con el alumno: Padre, Madre, Tutor, etc.',
+    keywords: ['parentesco', 'relacion', 'relación', 'vinculo', 'vínculo', 'relation', 'parent type', 'tipo'],
   },
   {
     key: 'schoolYear',
     label: 'Año escolar',
     required: false,
     hint: 'Ej: 2025-2026. Si no existe, se usa el año actual.',
-    keywords: ['año escolar', 'periodo', 'ciclo', 'school year', 'schoolyear', 'periodo escolar'],
+    keywords: ['año escolar', 'anio escolar', 'periodo', 'ciclo', 'school year', 'schoolyear'],
   },
 ]
 
 type Mapping = Record<string, string>  // systemField.key → excelColumnHeader | '__none__'
 
 // ── Auto-detect column mapping ─────────────────────────────────────
+function normalize(s: string) {
+  return s.toLowerCase()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')  // strip accents
+    .replace(/[^a-z0-9 ]/g, ' ')      // non-alphanum → space
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function autoDetect(headers: string[]): Mapping {
   const mapping: Mapping = {}
   const used = new Set<string>()
 
   for (const field of SYSTEM_FIELDS) {
-    // Normalize headers for matching
     const match = headers.find(h => {
       if (used.has(h)) return false
-      const norm = h.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
-      return field.keywords.some(kw => norm.includes(kw))
+      const norm = normalize(h)
+      return field.keywords.some(kw => norm.includes(normalize(kw)))
     })
     mapping[field.key] = match ?? '__none__'
     if (match) used.add(match)
+  }
+
+  // Fallback for fullName: if still unmapped, pick first unused column that contains 'nombre'
+  if (mapping['fullName'] === '__none__') {
+    const fallback = headers.find(h => !used.has(h) && normalize(h).includes('nombre'))
+    if (fallback) { mapping['fullName'] = fallback; used.add(fallback) }
   }
 
   return mapping
@@ -78,10 +122,12 @@ function autoDetect(headers: string[]): Mapping {
 // ── Download example template ──────────────────────────────────────
 function downloadTemplate() {
   const ws = XLSX.utils.aoa_to_sheet([
-    ['nombre_completo', 'grado', 'seccion', 'representante_email', 'año_escolar'],
-    ['Juan Pérez García', '1er', 'A', 'papa@gmail.com', '2025-2026'],
-    ['María Rodríguez', '2do', 'B', 'mama@gmail.com', '2025-2026'],
-    ['Carlos López', '7mo', 'A', 'rep@gmail.com', '2025-2026'],
+    ['Nombre del Alumno', 'Grado', 'Seccion', 'Año Escolar',
+     'Nombre del Representante', 'Correo del Representante',
+     'Telefono del Representante', 'Cedula del Representante', 'Parentesco'],
+    ['Juan Pérez García',   '1er', 'A', '2025-2026', 'Carlos Pérez',       'carlos.perez@gmail.com',  '0412-555-0001', 'V-10.111.222', 'Padre'],
+    ['María Rodríguez',     '2do', 'B', '2025-2026', 'Ana Rodríguez',      'ana.rodriguez@gmail.com', '0424-555-0002', 'V-11.333.444', 'Madre'],
+    ['Carlos López Ruiz',   '7mo', 'A', '2025-2026', 'Pedro López',        'pedro.lopez@yahoo.com',   '0416-555-0003', 'V-9.555.666',  'Padre'],
   ])
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Estudiantes')
@@ -178,11 +224,15 @@ export default function Import() {
 
   // Build preview rows applying the mapping
   const previewRows = rows.slice(0, 5).map(row => ({
-    fullName:            getMappedValue(row, 'fullName'),
-    grade:               getMappedValue(row, 'grade'),
-    section:             getMappedValue(row, 'section'),
-    representativeEmail: getMappedValue(row, 'representativeEmail'),
-    schoolYear:          getMappedValue(row, 'schoolYear') || new Date().getFullYear().toString(),
+    fullName:               getMappedValue(row, 'fullName'),
+    grade:                  getMappedValue(row, 'grade'),
+    section:                getMappedValue(row, 'section'),
+    representativeEmail:    getMappedValue(row, 'representativeEmail'),
+    representativeName:     getMappedValue(row, 'representativeName'),
+    representativePhone:    getMappedValue(row, 'representativePhone'),
+    representativeCedula:   getMappedValue(row, 'representativeCedula'),
+    representativeRelation: getMappedValue(row, 'representativeRelation'),
+    schoolYear:             getMappedValue(row, 'schoolYear') || new Date().getFullYear().toString(),
   }))
 
   // ── Step 3: Import ─────────────────────────────────────────────
@@ -196,18 +246,22 @@ export default function Import() {
     for (let i = 0; i < rows.length; i++) {
       const row = rows[i]
       try {
-        const fullName            = getMappedValue(row, 'fullName').trim()
-        const grade               = getMappedValue(row, 'grade').trim()
-        const section             = getMappedValue(row, 'section').trim()
-        const representativeEmail = getMappedValue(row, 'representativeEmail').trim()
-        const schoolYear          = getMappedValue(row, 'schoolYear').trim() || defaultYear
+        const fullName                = getMappedValue(row, 'fullName').trim()
+        const grade                   = getMappedValue(row, 'grade').trim()
+        const section                 = getMappedValue(row, 'section').trim()
+        const representativeEmail     = getMappedValue(row, 'representativeEmail').trim().toLowerCase()
+        const representativeName      = getMappedValue(row, 'representativeName').trim()
+        const representativePhone     = getMappedValue(row, 'representativePhone').trim()
+        const representativeCedula    = getMappedValue(row, 'representativeCedula').trim()
+        const representativeRelation  = getMappedValue(row, 'representativeRelation').trim()
+        const schoolYear              = getMappedValue(row, 'schoolYear').trim() || defaultYear
 
         if (!fullName || !grade || !section) { skipped++; continue }
 
-        // Try to link representative
+        // Try to link representative (by email if already registered)
         let repId = ''
         if (representativeEmail) {
-          const q = query(collection(db, 'users'), where('email', '==', representativeEmail.toLowerCase()))
+          const q = query(collection(db, 'users'), where('email', '==', representativeEmail))
           const snap = await getDocs(q)
           if (!snap.empty) repId = snap.docs[0].id
         }
@@ -216,9 +270,13 @@ export default function Import() {
         const enrollmentCode = `${grade}${section}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`
 
         await addDoc(collection(db, 'students'), {
-          schoolId:            appUser.schoolId,
-          representativeId:    repId,
-          representativeEmail: representativeEmail || '',
+          schoolId:               appUser.schoolId,
+          representativeId:       repId,
+          representativeEmail:    representativeEmail   || '',
+          representativeName:     representativeName    || '',
+          representativePhone:    representativePhone   || '',
+          representativeCedula:   representativeCedula  || '',
+          representativeRelation: representativeRelation|| '',
           fullName,
           grade,
           section,
@@ -371,20 +429,24 @@ export default function Import() {
           <div className="bg-slate-50 border border-slate-200 rounded-xl px-5 py-4">
             <p className="text-xs font-semibold text-slate-500 mb-2">COLUMNAS EN TU ARCHIVO</p>
             <div className="flex flex-wrap gap-2">
-              {headers.map(h => (
-                <span key={h} className={clsx(
-                  'text-xs px-2.5 py-1 rounded-lg font-medium border',
-                  Object.values(mapping).includes(h)
-                    ? 'bg-blue-100 text-blue-700 border-blue-300'
-                    : 'bg-white text-slate-500 border-slate-200'
-                )}>
-                  {h}
-                </span>
-              ))}
+              {headers.map(h => {
+                const isUsed = Object.values(mapping).includes(h)
+                return (
+                  <span key={h} className={clsx(
+                    'text-xs px-2.5 py-1 rounded-lg font-medium border',
+                    isUsed
+                      ? 'bg-blue-100 text-blue-700 border-blue-300'
+                      : 'bg-white text-slate-400 border-slate-200'
+                  )}>
+                    {h}
+                  </span>
+                )
+              })}
             </div>
             <p className="text-xs text-slate-400 mt-2">
-              Las columnas <span className="text-blue-600 font-medium">azules</span> están siendo usadas.
-              Las grises serán ignoradas.
+              Las columnas <span className="text-blue-600 font-medium">azules</span> están asignadas a un campo.{' '}
+              Las <span className="text-slate-500 font-medium">grises</span> no se importarán —{' '}
+              puedes asignarlas arriba usando el selector de cada campo.
             </p>
           </div>
 
@@ -433,13 +495,18 @@ export default function Import() {
                     <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">NOMBRE COMPLETO</th>
                     <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">GRADO</th>
                     <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">SECCIÓN</th>
+                    <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">REPRESENTANTE</th>
                     <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">EMAIL REP.</th>
-                    <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">AÑO ESCOLAR</th>
+                    <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">TELÉFONO</th>
+                    <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">CÉDULA</th>
+                    <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">PARENTESCO</th>
+                    <th className="px-4 py-2.5 text-left text-blue-700 font-semibold text-xs">AÑO</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {previewRows.map((row, i) => {
                     const hasIssue = !row.fullName || !row.grade || !row.section
+                    const empty = (v: string) => v || <span className="text-slate-300">—</span>
                     return (
                       <tr key={i} className={hasIssue ? 'bg-red-50' : 'hover:bg-slate-50'}>
                         <td className="px-4 py-2.5 text-slate-400 text-xs">{i + 1}</td>
@@ -452,7 +519,11 @@ export default function Import() {
                         <td className={clsx('px-4 py-2.5', row.section ? 'text-slate-600' : 'text-red-500 italic')}>
                           {row.section || '— vacío —'}
                         </td>
-                        <td className="px-4 py-2.5 text-slate-500 text-xs">{row.representativeEmail || <span className="text-slate-300">—</span>}</td>
+                        <td className="px-4 py-2.5 text-slate-600 text-xs">{empty(row.representativeName)}</td>
+                        <td className="px-4 py-2.5 text-slate-500 text-xs">{empty(row.representativeEmail)}</td>
+                        <td className="px-4 py-2.5 text-slate-500 text-xs">{empty(row.representativePhone)}</td>
+                        <td className="px-4 py-2.5 text-slate-500 text-xs">{empty(row.representativeCedula)}</td>
+                        <td className="px-4 py-2.5 text-slate-500 text-xs">{empty(row.representativeRelation)}</td>
                         <td className="px-4 py-2.5 text-slate-500 text-xs">{row.schoolYear}</td>
                       </tr>
                     )

@@ -22,6 +22,7 @@ export interface AppUser {
 export interface Student {
   id: string; schoolId: string; representativeId: string; enrollmentCode: string
   fullName: string; grade: string; section: string; schoolYear: string
+  representativeEmail?: string; representativeName?: string
   qrCodeUrl?: string; photoURL?: string; createdAt: Date
 }
 export interface Payment {

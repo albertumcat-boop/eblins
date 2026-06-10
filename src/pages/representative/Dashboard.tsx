@@ -4,6 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import {
   getStudentsByRepresentative, createStudent, generateMonthlyPayments,
   checkAndCreatePaymentReminders, getPaymentsByRepresentative, getNotificationsByUser,
+  linkRepresentativeToStudents,
 } from '@/services/db'
 import { Link } from 'react-router-dom'
 import { format, differenceInDays } from 'date-fns'
@@ -71,6 +72,12 @@ export default function RepresentativeDashboard() {
     if (appUser?.schoolId) {
       generateMonthlyPayments(appUser.schoolId).catch(() => {})
       checkAndCreatePaymentReminders(appUser.schoolId, appUser.id).catch(() => {})
+      // Auto-link any students imported before this rep registered
+      if (appUser.email) {
+        linkRepresentativeToStudents(appUser.id, appUser.email, appUser.schoolId)
+          .then(count => { if (count > 0) qc.invalidateQueries({ queryKey: ['my-students'] }) })
+          .catch(() => {})
+      }
     }
   }, [appUser?.schoolId])
 

@@ -1,11 +1,11 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
-import { getUsersBySchool, updateUserRole, deleteUser, approveUser, rejectUser, createAuditLog } from '@/services/db'
+import { getUsersBySchool, updateUserRole, deleteUser, approveUser, rejectUser, createAuditLog, getStudentsBySchool } from '@/services/db'
 import { sendPasswordResetEmail } from 'firebase/auth'
 import { auth } from '@/services/firebase'
 import toast from 'react-hot-toast'
-import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle, CheckCircle, Clock, KeyRound, Wrench } from 'lucide-react'
+import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle, CheckCircle, Clock, KeyRound, Wrench, UserX, Copy, ChevronDown, ChevronRight, Mail } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AppUser, UserRole } from '@/types'
@@ -27,11 +27,57 @@ export default function AdminUsers() {
   const [roleFilter, setRoleFilter] = useState('all')
   const [confirmDelete, setConfirmDelete] = useState<AppUser | null>(null)
 
+  const [showUnregistered, setShowUnregistered] = useState(true)
+  const [codeCopied, setCodeCopied] = useState(false)
+
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users', schoolId],
     queryFn: () => getUsersBySchool(schoolId),
     enabled: !!schoolId
   })
+
+  const { data: allStudents = [] } = useQuery({
+    queryKey: ['students', schoolId],
+    queryFn: () => getStudentsBySchool(schoolId),
+    enabled: !!schoolId
+  })
+
+  // Build list of unique reps from imported students that have NO registered account yet
+  const unregisteredReps = (() => {
+    const registeredEmails = new Set(users.map(u => u.email?.toLowerCase()))
+    const map = new Map<string, {
+      name: string; email: string; phone: string; cedula: string; relation: string; students: string[]
+    }>()
+    for (const s of allStudents) {
+      const email = ((s as any).representativeEmail || '').toLowerCase().trim()
+      if (!email || registeredEmails.has(email)) continue
+      if (!map.has(email)) {
+        map.set(email, {
+          name:     (s as any).representativeName     || '',
+          email,
+          phone:    (s as any).representativePhone    || '',
+          cedula:   (s as any).representativeCedula   || '',
+          relation: (s as any).representativeRelation || '',
+          students: [],
+        })
+      }
+      map.get(email)!.students.push(s.fullName)
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name))
+  })()
+
+  const copySchoolCode = () => {
+    navigator.clipboard.writeText(schoolId)
+    setCodeCopied(true)
+    setTimeout(() => setCodeCopied(false), 2000)
+    toast.success('Código copiado — compártelo con los representantes')
+  }
+
+  const copyInviteText = (rep: { name: string; email: string }) => {
+    const text = `Hola ${rep.name || 'representante'}, te invitamos a registrarte en el sistema del colegio.\n\n1. Entra a ${window.location.origin}/register\n2. Selecciona "Soy representante"\n3. Usa tu correo: ${rep.email}\n4. Ingresa el código del colegio: ${schoolId}\n\nUna vez registrado, el administrador aprobará tu acceso.`
+    navigator.clipboard.writeText(text)
+    toast.success('Mensaje de invitación copiado')
+  }
 
   const updateMut = useMutation({
     mutationFn: ({ userId, role }: { userId: string; role: string }) => updateUserRole(userId, role, schoolId),
@@ -170,6 +216,108 @@ export default function AdminUsers() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* ── Representantes importados sin cuenta ───────────────── */}
+      {unregisteredReps.length > 0 && (
+        <div className="bg-slate-50 border border-slate-200 rounded-2xl overflow-hidden">
+          {/* Header clickable */}
+          <button
+            className="w-full flex items-center gap-3 px-5 py-3 hover:bg-slate-100 transition-colors text-left"
+            onClick={() => setShowUnregistered(v => !v)}
+          >
+            <UserX size={16} className="text-slate-500 shrink-0"/>
+            <span className="font-semibold text-slate-700 text-sm flex-1">
+              Representantes importados sin cuenta — {unregisteredReps.length}
+            </span>
+            <span className="text-xs text-slate-400 mr-2 hidden sm:inline">
+              Deben registrarse para acceder
+            </span>
+            {showUnregistered
+              ? <ChevronDown size={15} className="text-slate-400 shrink-0"/>
+              : <ChevronRight size={15} className="text-slate-400 shrink-0"/>
+            }
+          </button>
+
+          {showUnregistered && (
+            <>
+              {/* School code banner */}
+              <div className="mx-5 mb-3 mt-1 bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 flex items-center gap-3 flex-wrap">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-blue-700 mb-0.5">Código de la escuela (para que se registren)</p>
+                  <p className="font-mono text-lg font-bold text-blue-900 tracking-widest select-all">{schoolId}</p>
+                </div>
+                <button
+                  onClick={copySchoolCode}
+                  className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-xl text-xs font-semibold hover:bg-blue-700 shrink-0"
+                >
+                  <Copy size={13}/>
+                  {codeCopied ? '¡Copiado!' : 'Copiar código'}
+                </button>
+              </div>
+
+              {/* Rep cards */}
+              <div className="px-5 pb-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {unregisteredReps.map(rep => (
+                  <div key={rep.email} className="bg-white border border-slate-200 rounded-xl p-4 space-y-2.5">
+                    {/* Name + avatar */}
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-full bg-slate-200 flex items-center justify-center text-sm font-bold text-slate-500 shrink-0">
+                        {rep.name ? rep.name[0].toUpperCase() : '?'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="font-semibold text-slate-800 text-sm">
+                            {rep.name || <span className="text-slate-400 italic">Sin nombre</span>}
+                          </p>
+                          {rep.relation && (
+                            <span className="text-xs bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded font-medium">
+                              {rep.relation}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                          <Mail size={11}/> {rep.email}
+                        </p>
+                        {rep.phone && (
+                          <p className="text-xs text-slate-400 mt-0.5">📞 {rep.phone}</p>
+                        )}
+                        {rep.cedula && (
+                          <p className="text-xs text-slate-400 mt-0.5">🪪 {rep.cedula}</p>
+                        )}
+                      </div>
+                      <span className="shrink-0 text-xs bg-amber-100 text-amber-700 font-semibold px-2 py-0.5 rounded-full border border-amber-200">
+                        Sin cuenta
+                      </span>
+                    </div>
+
+                    {/* Students */}
+                    <div>
+                      <p className="text-xs font-medium text-slate-500 mb-1">
+                        {rep.students.length === 1 ? '1 hijo importado:' : `${rep.students.length} hijos importados:`}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {rep.students.map(name => (
+                          <span key={name} className="text-xs bg-blue-50 text-blue-700 border border-blue-100 px-2 py-0.5 rounded-full font-medium">
+                            {name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Action */}
+                    <button
+                      onClick={() => copyInviteText(rep)}
+                      className="w-full flex items-center justify-center gap-2 border border-slate-200 text-slate-600 text-xs font-medium py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      <Copy size={12}/> Copiar invitación para enviar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       )}
 

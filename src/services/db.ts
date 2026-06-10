@@ -1,6 +1,6 @@
 import {
   collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, onSnapshot, increment,
+  query, where, orderBy, limit, serverTimestamp, onSnapshot, increment, writeBatch,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { format } from 'date-fns'
@@ -54,6 +54,29 @@ export const getStudentsBySchool = async (schoolId: string) => {
   return (await getDocs(q)).docs.map(d => fromDoc<Student>(d))
 }
 export const deleteStudent = (id: string) => deleteDoc(doc(db, 'students', id))
+
+/**
+ * Auto-link: when a representative logs in, find any students that have their email
+ * stored in `representativeEmail` but no `representativeId` yet, and link them.
+ * This handles the case where an admin imported students before the rep registered.
+ */
+export const linkRepresentativeToStudents = async (repId: string, email: string, schoolId: string) => {
+  const emailLower = email.toLowerCase().trim()
+  const q = query(
+    collection(db, 'students'),
+    where('schoolId', '==', schoolId),
+    where('representativeEmail', '==', emailLower),
+  )
+  const snap = await getDocs(q)
+  const unlinked = snap.docs.filter(d => !d.data().representativeId)
+  if (unlinked.length === 0) return 0
+  const batch = writeBatch(db)
+  for (const d of unlinked) {
+    batch.update(doc(db, 'students', d.id), { representativeId: repId })
+  }
+  await batch.commit()
+  return unlinked.length
+}
 export const deleteUser = (id: string) => deleteDoc(doc(db, 'users', id))
 export const approveUser = async (id: string, schoolId: string) => {
   const snap = await getDoc(doc(db, 'users', id))

@@ -12,7 +12,10 @@ interface AuthContextValue {
   firebaseUser: FirebaseUser | null; appUser: AppUser | null; loading: boolean
   emailVerified: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signInWithGoogle: () => Promise<void>
+  /** Returns isNewUser=true if Firestore profile didn't exist yet (caller must show onboarding modal) */
+  signInWithGoogle: () => Promise<{ isNewUser: boolean }>
+  /** Called after Google sign-in when the user is new — saves their role and school code */
+  completeGoogleProfile: (role: string, schoolId: string) => Promise<void>
   signUp: (email: string, password: string, displayName: string, role: string, schoolId: string) => Promise<void>
   logout: () => Promise<void>
   refreshAppUser: () => Promise<void>
@@ -69,15 +72,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) =>
     void await signInWithEmailAndPassword(auth, email, password)
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (): Promise<{ isNewUser: boolean }> => {
     const { user } = await signInWithPopup(auth, googleProvider)
     const ref = doc(db, 'users', user.uid)
-    if (!(await getDoc(ref)).exists()) {
-      await setDoc(ref, {
-        email: user.email, displayName: user.displayName, photoURL: user.photoURL,
-        role: 'representative', schoolId: 'pending', createdAt: serverTimestamp(),
-      })
+    const snap = await getDoc(ref)
+    if (snap.exists()) {
+      // Existing user — profile already in Firestore, onSnapshot will pick it up
+      return { isNewUser: false }
     }
+    // New user — caller must show role/school modal before creating the profile
+    return { isNewUser: true }
+  }
+
+  const completeGoogleProfile = async (role: string, schoolId: string) => {
+    if (!firebaseUser) throw new Error('No Google user signed in')
+    const status = (role === 'representative' || role === 'teacher') ? 'pending_approval' : 'approved'
+    await setDoc(doc(db, 'users', firebaseUser.uid), {
+      email:       firebaseUser.email,
+      displayName: firebaseUser.displayName,
+      photoURL:    firebaseUser.photoURL,
+      role, schoolId, status,
+      createdAt: serverTimestamp(),
+    })
+    // onSnapshot in useEffect will pick up the new document automatically
   }
 
   const signUp = async (email: string, password: string, displayName: string, role: string, schoolId: string) => {
@@ -100,7 +117,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const emailVerified = firebaseUser?.emailVerified ?? false
 
   return (
-    <AuthContext.Provider value={{ firebaseUser, appUser, loading, emailVerified, signIn, signInWithGoogle, signUp, logout, refreshAppUser }}>
+    <AuthContext.Provider value={{ firebaseUser, appUser, loading, emailVerified, signIn, signInWithGoogle, completeGoogleProfile, signUp, logout, refreshAppUser }}>
       {children}
     </AuthContext.Provider>
   )
