@@ -291,8 +291,10 @@ export const createAuditLog = async (data: {
 export const createEvent = (data: any) =>
   addDoc(collection(db, 'events'), { ...data, createdAt: serverTimestamp() })
 export const getEventsBySchool = async (schoolId: string) => {
-  const q = query(collection(db, 'events'), where('schoolId', '==', schoolId), orderBy('date', 'asc'))
-  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+  // orderBy removed — sorts client-side to avoid requiring a composite Firestore index
+  const q = query(collection(db, 'events'), where('schoolId', '==', schoolId))
+  const docs = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() } as any))
+  return docs.sort((a, b) => (a.date > b.date ? 1 : -1))
 }
 export const deleteEvent = (id: string) => deleteDoc(doc(db, 'events', id))
 
