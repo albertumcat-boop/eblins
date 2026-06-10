@@ -59,8 +59,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, displayName: string, role: string, schoolId: string) => {
     const { user } = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(user, { displayName })
-    // Representatives start as pending_approval until admin verifies them
-    const status = role === 'representative' ? 'pending_approval' : 'approved'
+    // Representatives and teachers start as pending_approval until admin verifies them
+    const status = (role === 'representative' || role === 'teacher') ? 'pending_approval' : 'approved'
     await setDoc(doc(db, 'users', user.uid), { email, displayName, role, schoolId, status, createdAt: serverTimestamp() })
     await sendEmailVerification(user)
   }

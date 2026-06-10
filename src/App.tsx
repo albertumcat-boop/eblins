@@ -123,7 +123,7 @@ function AppRoutes() {
     appUser.role !== 'admin'
   ) return <PendingSchool />
   // Representante pendiente de aprobación por el admin
-  if (appUser.role === 'representative' && appUser.status === 'pending_approval') return <PendingSchool />
+  if ((appUser.role === 'representative' || appUser.role === 'teacher') && appUser.status === 'pending_approval') return <PendingSchool />
   if (appUser.role === 'admin') return (
     <Routes>
       <Route path="/legal" element={<Legal />} />
