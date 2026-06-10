@@ -5,7 +5,7 @@ import { getUsersBySchool, updateUserRole, deleteUser, approveUser, rejectUser, 
 import { sendPasswordResetEmail } from 'firebase/auth'
 import { auth } from '@/services/firebase'
 import toast from 'react-hot-toast'
-import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle, CheckCircle, Clock, KeyRound } from 'lucide-react'
+import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle, CheckCircle, Clock, KeyRound, Wrench } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AppUser, UserRole } from '@/types'
@@ -86,6 +86,17 @@ export default function AdminUsers() {
       qc.invalidateQueries({ queryKey: ['users'] })
     },
     onError: () => toast.error('Error al aprobar usuario'),
+  })
+
+  // Fix users stuck with schoolId='pending' — sets both status and schoolId correctly
+  const fixMut = useMutation({
+    mutationFn: (userId: string) => approveUser(userId, schoolId),
+    onSuccess: (_, userId) => {
+      const u = users.find(x => x.id === userId)
+      toast.success((u?.displayName || 'Usuario') + ' corregido. Ya puede acceder.')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: () => toast.error('Error al corregir usuario'),
   })
 
   const rejectMut = useMutation({
@@ -245,6 +256,15 @@ export default function AdminUsers() {
                           <td className="px-4 py-3">
                             {!isSelf && (
                               <div className="flex items-center gap-1">
+                                {(u.schoolId === 'pending' || u.schoolId === 'school_default') && (
+                                  <button
+                                    onClick={() => fixMut.mutate(u.id)}
+                                    disabled={fixMut.isPending}
+                                    className="flex items-center gap-1 px-2 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
+                                    title="Este usuario está bloqueado en 'Cuenta en revisión'. Haz clic para corregirlo.">
+                                    <Wrench size={12}/> Corregir
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => sendReset(u.email, u.displayName)}
                                   className="p-1.5 text-slate-300 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors"
