@@ -45,8 +45,8 @@ export default function TeacherAttendance() {
   const [selectedDate, setSelectedDate] = useState(today)
   const [attendance, setAttendance] = useState<Record<string, AttStatus>>({})
   const [saving, setSaving] = useState(false)
-  const [gradeFilter, setGradeFilter] = useState('1er')
-  const [sectionFilter, setSectionFilter] = useState('A')
+  const [gradeFilter, setGradeFilter] = useState(appUser?.assignedGrade || '1er')
+  const [sectionFilter, setSectionFilter] = useState(appUser?.assignedSection || 'A')
 
   const { data: allStudents = [] } = useQuery({
     queryKey: ['students', appUser?.schoolId],

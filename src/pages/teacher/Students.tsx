@@ -7,19 +7,30 @@ import { Search } from 'lucide-react'
 export default function TeacherStudents() {
   const { appUser } = useAuth()
   const [search, setSearch] = useState('')
-  // INTENCIONAL: el docente necesita ver todos los estudiantes de la escuela para poder
-  // buscarlos y asignarles notas/asistencia. Este acceso amplio es aceptable a nivel de negocio;
-  // la restricción real se aplica en Firestore Security Rules.
-  const { data: students = [], isLoading } = useQuery({
+
+  const { data: allStudents = [], isLoading } = useQuery({
     queryKey: ['students', appUser?.schoolId],
     queryFn: () => getStudentsBySchool(appUser!.schoolId),
     enabled: !!appUser?.schoolId,
   })
-  const filtered = students.filter(s => !search || s.fullName.toLowerCase().includes(search.toLowerCase()) || s.enrollmentCode.includes(search))
+
+  // Only show students from teacher's assigned class
+  const classStudents = allStudents.filter(s =>
+    s.grade === appUser?.assignedGrade && s.section === appUser?.assignedSection
+  )
+
+  const filtered = classStudents.filter(s =>
+    !search || s.fullName.toLowerCase().includes(search.toLowerCase()) || s.enrollmentCode.includes(search)
+  )
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-800">Estudiantes</h1>
+      <div>
+        <h1 className="text-2xl font-bold text-slate-800">Estudiantes</h1>
+        {appUser?.assignedGrade && (
+          <p className="text-sm text-slate-500 mt-0.5">{appUser.assignedGrade} — Sección {appUser.assignedSection}</p>
+        )}
+      </div>
       <div className="relative max-w-sm">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
         <input className="w-full pl-9 pr-4 py-2 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"

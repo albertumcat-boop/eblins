@@ -20,8 +20,8 @@ export default function TeacherGrades() {
   const [grades, setGrades] = useState<Record<string, string>>({})
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [filterGrade, setFilterGrade] = useState('')
-  const [filterSection, setFilterSection] = useState('')
+  const [filterGrade, setFilterGrade] = useState(appUser?.assignedGrade || '')
+  const [filterSection, setFilterSection] = useState(appUser?.assignedSection || '')
 
   const { data: students = [] } = useQuery({
     queryKey: ['students', appUser?.schoolId],
