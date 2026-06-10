@@ -43,6 +43,9 @@ export const getStudentsBySchool = async (schoolId: string) => {
   const q = query(collection(db, 'students'), where('schoolId', '==', schoolId))
   return (await getDocs(q)).docs.map(d => fromDoc<Student>(d))
 }
+export const deleteStudent = (id: string) => deleteDoc(doc(db, 'students', id))
+export const deleteUser = (id: string) => deleteDoc(doc(db, 'users', id))
+
 export const updateStudent = (id: string, data: Partial<Student>) =>
   updateDoc(doc(db, 'students', id), data)
 

@@ -1,19 +1,20 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
-import { getUsersBySchool, updateUserRole, createAuditLog } from '@/services/db'
+import { getUsersBySchool, updateUserRole, deleteUser, createAuditLog } from '@/services/db'
 import toast from 'react-hot-toast'
-import { Search, Shield, User, GraduationCap } from 'lucide-react'
+import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AppUser, UserRole } from '@/types'
 import clsx from 'clsx'
 
-const ROLE_CONFIG: Record<UserRole, { label: string; icon: any; color: string }> = {
+const ROLE_CONFIG = {
   admin:          { label: 'Administrador', icon: Shield,        color: 'bg-blue-100 text-blue-700' },
   representative: { label: 'Representante', icon: User,          color: 'bg-green-100 text-green-700' },
   teacher:        { label: 'Profesor',      icon: GraduationCap, color: 'bg-purple-100 text-purple-700' },
-}
+} as Record<UserRole, { label: string; icon: any; color: string }>
+
 const toDate = (v: any): Date => v?.toDate ? v.toDate() : new Date(v)
 
 export default function AdminUsers() {
@@ -22,6 +23,7 @@ export default function AdminUsers() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('all')
+  const [confirmDelete, setConfirmDelete] = useState<AppUser | null>(null)
 
   const { data: users = [], isLoading } = useQuery({
     queryKey: ['users', schoolId],
@@ -36,7 +38,7 @@ export default function AdminUsers() {
       await createAuditLog({
         schoolId,
         action: 'role_changed',
-        description: `Rol de ${u?.displayName || userId} cambiado a ${role}`,
+        description: 'Rol de ' + (u?.displayName || userId) + ' cambiado a ' + role,
         performedBy: appUser!.id,
         performedByName: appUser!.displayName,
         metadata: { userId, newRole: role },
@@ -47,10 +49,29 @@ export default function AdminUsers() {
     onError: () => toast.error('Error al actualizar rol'),
   })
 
+  const deleteMut = useMutation({
+    mutationFn: (userId: string) => deleteUser(userId),
+    onSuccess: async (_, userId) => {
+      const u = users.find(x => x.id === userId)
+      await createAuditLog({
+        schoolId,
+        action: 'user_deleted',
+        description: 'Usuario ' + (u?.displayName || userId) + ' eliminado del sistema',
+        performedBy: appUser!.id,
+        performedByName: appUser!.displayName,
+        metadata: { userId, role: u?.role },
+      }).catch(() => {})
+      toast.success('Usuario eliminado')
+      qc.invalidateQueries({ queryKey: ['users'] })
+      setConfirmDelete(null)
+    },
+    onError: () => toast.error('Error al eliminar usuario'),
+  })
+
   const filtered = users.filter(u => {
-    const matchSearch = !search || u.displayName?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
-    const matchRole = roleFilter === 'all' || u.role === roleFilter
-    return matchSearch && matchRole
+    const ms = !search || u.displayName?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
+    const mr = roleFilter === 'all' || u.role === roleFilter
+    return ms && mr
   })
 
   return (
@@ -70,59 +91,127 @@ export default function AdminUsers() {
           <option value="teacher">Profesor</option>
         </select>
       </div>
+
       <div className="grid grid-cols-3 gap-3">
-        {(['admin','representative','teacher'] as UserRole[]).map(role => {
+        {(['admin', 'representative', 'teacher'] as UserRole[]).map(role => {
           const cfg = ROLE_CONFIG[role]; const Icon = cfg.icon
           return (
             <div key={role} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${cfg.color}`}><Icon size={18}/></div>
-              <div><p className="text-2xl font-bold text-slate-800">{users.filter(u => u.role === role).length}</p><p className="text-xs text-slate-500">{cfg.label}s</p></div>
+              <div>
+                <p className="text-2xl font-bold text-slate-800">{users.filter(u => u.role === role).length}</p>
+                <p className="text-xs text-slate-500">{cfg.label}s</p>
+              </div>
             </div>
           )
         })}
       </div>
+
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        {isLoading ? <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"/></div>
-        : <div className="overflow-x-auto"><table className="w-full text-sm">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>{['Usuario','Correo','Rol','Registrado','Cambiar rol'].map(h => (
-                <th key={h} className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{h}</th>
-              ))}</tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {filtered.map(u => {
-                const cfg = ROLE_CONFIG[u.role as UserRole]; const Icon = cfg?.icon
-                return (
-                  <tr key={u.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">{u.displayName?.[0]?.toUpperCase() || '?'}</div>
-                        <span className="font-medium text-slate-700">{u.displayName}</span>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500">{u.email}</td>
-                    <td className="px-4 py-3">
-                      <span className={clsx('inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium', cfg?.color)}>
-                        {Icon && <Icon size={11}/>}{cfg?.label}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 text-slate-400 text-xs">{u.createdAt ? format(toDate(u.createdAt), 'dd/MM/yyyy', { locale: es }) : '—'}</td>
-                    <td className="px-4 py-3">
-                      {u.id !== appUser?.id && (
-                        <select className="border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          value={u.role} onChange={e => updateMut.mutate({ userId: u.id, role: e.target.value })}>
-                          <option value="admin">Administrador</option>
-                          <option value="representative">Representante</option>
-                          <option value="teacher">Profesor</option>
-                        </select>
-                      )}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table></div>}
+        {isLoading
+          ? <div className="flex justify-center py-16"><div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"/></div>
+          : filtered.length === 0
+            ? <div className="text-center py-16 text-slate-400 text-sm">Sin usuarios</div>
+            : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                      {['Usuario', 'Correo', 'Rol', 'Registrado', 'Cambiar rol', ''].map((h, i) => (
+                        <th key={i} className="text-left px-4 py-3 font-medium text-slate-500 text-xs uppercase tracking-wide">{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {filtered.map(u => {
+                      const cfg = ROLE_CONFIG[u.role as UserRole]; const Icon = cfg?.icon
+                      const isSelf = u.id === appUser?.id
+                      return (
+                        <tr key={u.id} className="hover:bg-slate-50">
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-bold text-slate-600">
+                                {u.displayName?.[0]?.toUpperCase() || '?'}
+                              </div>
+                              <span className="font-medium text-slate-700">{u.displayName}</span>
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-slate-500">{u.email}</td>
+                          <td className="px-4 py-3">
+                            <span className={clsx('inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium', cfg?.color)}>
+                              {Icon && <Icon size={11}/>}{cfg?.label}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-400 text-xs">
+                            {u.createdAt ? format(toDate(u.createdAt), 'dd/MM/yyyy', { locale: es }) : '---'}
+                          </td>
+                          <td className="px-4 py-3">
+                            {!isSelf && (
+                              <select
+                                className="border border-slate-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                value={u.role}
+                                onChange={e => updateMut.mutate({ userId: u.id, role: e.target.value })}>
+                                <option value="admin">Administrador</option>
+                                <option value="representative">Representante</option>
+                                <option value="teacher">Profesor</option>
+                              </select>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {!isSelf && (
+                              <button
+                                onClick={() => setConfirmDelete(u)}
+                                className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Eliminar usuario">
+                                <Trash2 size={14}/>
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+        }
       </div>
+
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <AlertTriangle size={18} className="text-red-500"/> Eliminar usuario
+              </h3>
+              <button onClick={() => setConfirmDelete(null)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-slate-600 mb-2">
+                Vas a eliminar a <strong>{confirmDelete.displayName}</strong> del sistema.
+              </p>
+              <p className="text-xs text-slate-400">{confirmDelete.email} &mdash; {ROLE_CONFIG[confirmDelete.role as UserRole]?.label}</p>
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <strong>Nota:</strong> Esto elimina el perfil. El usuario no podra acceder hasta volver a registrarse.
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              <button
+                onClick={() => setConfirmDelete(null)}
+                className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button
+                onClick={() => deleteMut.mutate(confirmDelete.id)}
+                disabled={deleteMut.isPending}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50 font-medium">
+                {deleteMut.isPending ? 'Eliminando...' : 'Si, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

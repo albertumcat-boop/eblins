@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
-import { getStudentsBySchool, createStudent, updateStudent, getUsersBySchool } from '@/services/db'
+import { getStudentsBySchool, createStudent, updateStudent, deleteStudent, getUsersBySchool } from '@/services/db'
 import { generateStudentQR } from '@/utils/exports'
 import toast from 'react-hot-toast'
-import { Plus, QrCode, Search, Edit2, X, Download, Copy, Filter } from 'lucide-react'
+import { Plus, QrCode, Search, Edit2, X, Download, Copy, Filter, Trash2, AlertTriangle } from 'lucide-react'
 import type { Student } from '@/types'
 
 const GRADES = ['1er','2do','3er','4to','5to','6to','7mo','8vo','9no','10mo','11vo','12vo']
@@ -45,6 +45,7 @@ export default function AdminStudents() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<Student | null>(null)
   const [qrStudent, setQrStudent] = useState<{ name: string; url: string } | null>(null)
+  const [confirmDelete, setConfirmDelete] = useState<Student | null>(null)
   const [form, setForm] = useState({ fullName: '', grade: '1er', section: 'A', schoolYear: '2024-2025', representativeId: '' })
 
   const { data: students = [], isLoading } = useQuery({ queryKey: ['students', schoolId], queryFn: () => getStudentsBySchool(schoolId), enabled: !!schoolId })
@@ -59,6 +60,15 @@ export default function AdminStudents() {
   const updateMut = useMutation({
     mutationFn: () => updateStudent(editing!.id, form),
     onSuccess: () => { toast.success('Estudiante actualizado'); qc.invalidateQueries({ queryKey: ['students'] }); setShowModal(false); setEditing(null) },
+  })
+  const deleteMut = useMutation({
+    mutationFn: (studentId: string) => deleteStudent(studentId),
+    onSuccess: () => {
+      toast.success('Estudiante eliminado')
+      qc.invalidateQueries({ queryKey: ['students'] })
+      setConfirmDelete(null)
+    },
+    onError: () => toast.error('Error al eliminar estudiante'),
   })
 
   const openCreate = () => { setEditing(null); setForm({ fullName: '', grade: '1er', section: 'A', schoolYear: '2024-2025', representativeId: '' }); setShowModal(true) }
@@ -174,9 +184,10 @@ export default function AdminStudents() {
                       <td className="px-4 py-3 text-slate-500">{s.schoolYear}</td>
                       <td className="px-4 py-3 text-slate-600">{rep?.displayName || '—'}</td>
                       <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <button onClick={() => openEdit(s)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"><Edit2 size={14}/></button>
-                          <button onClick={() => handleQR(s)} className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg"><QrCode size={14}/></button>
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => openEdit(s)} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Editar"><Edit2 size={14}/></button>
+                          <button onClick={() => handleQR(s)} className="p-1.5 text-slate-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg" title="Ver QR"><QrCode size={14}/></button>
+                          <button onClick={() => setConfirmDelete(s)} className="p-1.5 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-lg" title="Eliminar estudiante"><Trash2 size={14}/></button>
                         </div>
                       </td>
                     </tr>
@@ -199,7 +210,6 @@ export default function AdminStudents() {
           return (
             <div key={s.id} className="bg-white rounded-xl border border-slate-200 p-4">
               <div className="flex items-start gap-3">
-                {/* Avatar */}
                 <div className={`w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${avatarColor(s.fullName)}`}>
                   {initials(s.fullName)}
                 </div>
@@ -207,7 +217,6 @@ export default function AdminStudents() {
                   <p className="font-semibold text-slate-800 truncate">{s.fullName}</p>
                   <p className="text-xs text-slate-500">{s.grade} — Sección {s.section} · {s.schoolYear}</p>
                   {rep && <p className="text-xs text-slate-400 mt-0.5">Rep: {rep.displayName}</p>}
-                  {/* Enrollment code with copy */}
                   <div className="flex items-center gap-1.5 mt-2">
                     <span className="font-mono text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">{s.enrollmentCode}</span>
                     <button
@@ -217,14 +226,12 @@ export default function AdminStudents() {
                     </button>
                   </div>
                 </div>
-                {/* QR thumbnail */}
                 <button
                   onClick={() => handleQR(s)}
                   className="shrink-0 w-10 h-10 bg-purple-50 rounded-lg flex items-center justify-center text-purple-600 hover:bg-purple-100 border border-purple-100 transition-colors">
                   <QrCode size={18}/>
                 </button>
               </div>
-              {/* Actions */}
               <div className="flex gap-2 mt-3 pt-3 border-t border-slate-100">
                 <button onClick={() => openEdit(s)}
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs text-slate-600 border border-slate-200 py-2 rounded-lg hover:bg-slate-50">
@@ -234,12 +241,17 @@ export default function AdminStudents() {
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs text-purple-600 border border-purple-200 py-2 rounded-lg hover:bg-purple-50">
                   <QrCode size={13}/> Ver QR
                 </button>
+                <button onClick={() => setConfirmDelete(s)}
+                  className="flex items-center justify-center gap-1.5 text-xs text-red-500 border border-red-200 px-3 py-2 rounded-lg hover:bg-red-50">
+                  <Trash2 size={13}/>
+                </button>
               </div>
             </div>
           )
         })}
       </div>
 
+      {/* Create/Edit modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
@@ -277,6 +289,42 @@ export default function AdminStudents() {
         </div>
       )}
 
+      {/* Delete confirmation modal */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+              <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                <AlertTriangle size={18} className="text-red-500"/> Eliminar estudiante
+              </h3>
+              <button onClick={() => setConfirmDelete(null)} className="text-slate-400 hover:text-slate-600"><X size={20}/></button>
+            </div>
+            <div className="px-6 py-5">
+              <p className="text-sm text-slate-600 mb-1">
+                Vas a eliminar a <strong>{confirmDelete.fullName}</strong> del sistema.
+              </p>
+              <p className="text-xs text-slate-400">{confirmDelete.grade} &mdash; Sección {confirmDelete.section} · Matrícula: {confirmDelete.enrollmentCode}</p>
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <strong>Atención:</strong> Esta acción elimina al alumno y no puede deshacerse. Los registros de asistencia y notas asociados permanecerán.
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
+              <button onClick={() => setConfirmDelete(null)}
+                className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm hover:bg-slate-50">
+                Cancelar
+              </button>
+              <button
+                onClick={() => deleteMut.mutate(confirmDelete.id)}
+                disabled={deleteMut.isPending}
+                className="flex-1 bg-red-600 text-white py-2.5 rounded-xl text-sm hover:bg-red-700 disabled:opacity-50 font-medium">
+                {deleteMut.isPending ? 'Eliminando...' : 'Si, eliminar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* QR modal */}
       {qrStudent && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white rounded-2xl shadow-xl p-6 flex flex-col items-center gap-4 w-72">
