@@ -1,25 +1,41 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { getStudentsBySchool } from '@/services/db'
 import { db } from '@/services/firebase'
-import { collection, addDoc, getDocs, query, where, serverTimestamp, updateDoc, doc } from 'firebase/firestore'
+import {
+  collection, addDoc, getDocs, query, where,
+  serverTimestamp, updateDoc, doc,
+} from 'firebase/firestore'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
-import { Check, X, Minus, Save, Calendar, Users, CheckCheck } from 'lucide-react'
+import {
+  Check, X, Clock, Save, Calendar, Users,
+  CheckCheck, AlarmClock, Bell,
+} from 'lucide-react'
 import clsx from 'clsx'
 
 type AttStatus = 'present' | 'absent' | 'late'
 
-const STATUS_CONFIG: Record<AttStatus, { label: string; color: string; icon: any; short: string }> = {
-  present: { label: 'Presente', short: 'P', color: 'bg-green-100 text-green-700 border-green-300', icon: Check },
-  absent:  { label: 'Ausente',  short: 'A', color: 'bg-red-100 text-red-700 border-red-300',       icon: X },
-  late:    { label: 'Tardanza', short: 'T', color: 'bg-amber-100 text-amber-700 border-amber-300', icon: Minus },
+const STATUS_CFG: Record<AttStatus, { label: string; color: string; icon: any }> = {
+  present: { label: 'Presente', color: 'bg-green-100 text-green-700 border-green-300', icon: Check },
+  absent:  { label: 'Ausente',  color: 'bg-red-100 text-red-700 border-red-300',       icon: X },
+  late:    { label: 'Tardanza', color: 'bg-amber-100 text-amber-700 border-amber-300', icon: Clock },
 }
 
 const GRADES   = ['1er','2do','3er','4to','5to','6to','7mo','8vo','9no','10mo','11vo','12vo']
 const SECTIONS = ['A','B','C','D','E']
+
+interface LateNotice {
+  id: string
+  studentId: string
+  studentName: string
+  type: 'late' | 'absent'
+  reason: string
+  expectedTime?: string | null
+  representativeName: string
+}
 
 export default function TeacherAttendance() {
   const { appUser } = useAuth()
@@ -37,33 +53,69 @@ export default function TeacherAttendance() {
     enabled: !!appUser?.schoolId,
   })
 
-  // Filter by selected grade/section
   const students = allStudents.filter(s => s.grade === gradeFilter && s.section === sectionFilter)
 
+  // Load attendance record for this date/grade/section
   const { data: existingAtt } = useQuery({
     queryKey: ['attendance', selectedDate, appUser?.schoolId, gradeFilter, sectionFilter],
     queryFn: async () => {
-      const q = query(collection(db, 'attendance'),
+      const q = query(
+        collection(db, 'attendance'),
         where('date', '==', selectedDate),
         where('schoolId', '==', appUser!.schoolId),
         where('grade', '==', gradeFilter),
-        where('section', '==', sectionFilter))
+        where('section', '==', sectionFilter),
+      )
       const snap = await getDocs(q)
       if (!snap.empty) {
         const data = snap.docs[0].data()
         setAttendance(data.records || {})
         return { id: snap.docs[0].id, ...data }
       }
+      // No saved record yet — pre-fill from lateNotices (applied after notices load)
       setAttendance({})
       return null
     },
     enabled: !!appUser?.schoolId,
   })
 
+  // Load late/absence notices from representatives for this date + grade
+  const { data: notices = [] } = useQuery({
+    queryKey: ['lateNotices-teacher', appUser?.schoolId, selectedDate, gradeFilter, sectionFilter],
+    queryFn: async () => {
+      const q = query(
+        collection(db, 'lateNotices'),
+        where('schoolId', '==', appUser!.schoolId),
+        where('date', '==', selectedDate),
+        where('grade', '==', gradeFilter),
+        where('section', '==', sectionFilter),
+      )
+      const snap = await getDocs(q)
+      const result = snap.docs.map(d => ({ id: d.id, ...d.data() } as LateNotice))
+
+      // If no attendance saved yet, pre-fill states from notices
+      setAttendance(prev => {
+        const hasSaved = Object.keys(prev).length > 0
+        if (hasSaved) return prev           // don't overwrite teacher's work
+        const prefilled: Record<string, AttStatus> = {}
+        result.forEach(n => {
+          prefilled[n.studentId] = n.type === 'late' ? 'late' : 'absent'
+        })
+        return prefilled
+      })
+      return result
+    },
+    enabled: !!appUser?.schoolId,
+  })
+
+  // Build a map: studentId → notice (for quick lookup in the list)
+  const noticeByStudent: Record<string, LateNotice> = {}
+  notices.forEach(n => { noticeByStudent[n.studentId] = n })
+
   const toggle = (studentId: string) => {
     setAttendance(prev => {
-      const current = prev[studentId]
-      const next: AttStatus = !current || current === 'late' ? 'present' : current === 'present' ? 'absent' : 'late'
+      const cur = prev[studentId]
+      const next: AttStatus = !cur || cur === 'late' ? 'present' : cur === 'present' ? 'absent' : 'late'
       return { ...prev, [studentId]: next }
     })
   }
@@ -79,13 +131,9 @@ export default function TeacherAttendance() {
     setSaving(true)
     try {
       const data = {
-        date:      selectedDate,
-        schoolId:  appUser!.schoolId,
-        teacherId: appUser!.id,
-        grade:     gradeFilter,
-        section:   sectionFilter,
-        records:   attendance,
-        updatedAt: serverTimestamp(),
+        date: selectedDate, schoolId: appUser!.schoolId, teacherId: appUser!.id,
+        grade: gradeFilter, section: sectionFilter,
+        records: attendance, updatedAt: serverTimestamp(),
       }
       if (existingAtt) {
         await updateDoc(doc(db, 'attendance', (existingAtt as any).id), data)
@@ -99,12 +147,13 @@ export default function TeacherAttendance() {
   }
 
   const counts = {
-    present: Object.values(attendance).filter(v => v === 'present').length,
-    absent:  Object.values(attendance).filter(v => v === 'absent').length,
-    late:    Object.values(attendance).filter(v => v === 'late').length,
+    present:  Object.values(attendance).filter(v => v === 'present').length,
+    absent:   Object.values(attendance).filter(v => v === 'absent').length,
+    late:     Object.values(attendance).filter(v => v === 'late').length,
     unmarked: students.length - Object.values(attendance).filter(Boolean).length,
   }
   const allMarked = students.length > 0 && counts.unmarked === 0
+  const isToday = selectedDate === today
 
   return (
     <div className="space-y-5">
@@ -122,10 +171,42 @@ export default function TeacherAttendance() {
         </button>
       </div>
 
-      {/* Advertencia de grado diferente al asignado */}
-      {appUser?.assignedGrade && gradeFilter && gradeFilter !== appUser.assignedGrade && (
+      {/* Advertencia grado diferente */}
+      {appUser?.assignedGrade && gradeFilter !== appUser.assignedGrade && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
           ⚠️ Estás viendo datos de un grado diferente al asignado en tu perfil.
+        </div>
+      )}
+
+      {/* Avisos de representantes — banner */}
+      {notices.length > 0 && (
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
+          <div className="flex items-center gap-2 mb-2">
+            <Bell size={16} className="text-blue-600"/>
+            <span className="font-semibold text-blue-800 text-sm">
+              {notices.length} aviso{notices.length > 1 ? 's' : ''} de representantes para hoy
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {notices.map(n => (
+              <div key={n.id} className="flex items-start gap-2 text-sm">
+                <span className={clsx(
+                  'shrink-0 text-xs px-2 py-0.5 rounded-full font-semibold mt-0.5',
+                  n.type === 'late' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+                )}>
+                  {n.type === 'late' ? '⏰ Tarde' : '🚫 Ausente'}
+                </span>
+                <span className="text-blue-900">
+                  <strong>{n.studentName}</strong>
+                  {' — '}{n.reason}
+                  {n.type === 'late' && n.expectedTime && (
+                    <span className="text-blue-600"> · llega aprox. {n.expectedTime}</span>
+                  )}
+                  <span className="text-blue-400 text-xs"> · Aviso de: {n.representativeName}</span>
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 
@@ -173,19 +254,22 @@ export default function TeacherAttendance() {
           <p className="text-2xl font-bold text-amber-700">{counts.late}</p>
           <p className="text-xs font-medium text-amber-600">Tardanzas</p>
         </div>
-        <div className={clsx('border rounded-xl p-3 text-center', allMarked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200')}>
-          <p className={clsx('text-2xl font-bold', allMarked ? 'text-blue-700' : 'text-slate-500')}>{counts.unmarked}</p>
+        <div className={clsx('border rounded-xl p-3 text-center',
+          allMarked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200')}>
+          <p className={clsx('text-2xl font-bold', allMarked ? 'text-blue-700' : 'text-slate-500')}>
+            {allMarked ? '✓' : counts.unmarked}
+          </p>
           <p className={clsx('text-xs font-medium', allMarked ? 'text-blue-600' : 'text-slate-400')}>
-            {allMarked ? '✓ Completado' : 'Sin marcar'}
+            {allMarked ? 'Completado' : 'Sin marcar'}
           </p>
         </div>
       </div>
 
       {/* Quick actions */}
-      <div className="flex gap-2 flex-wrap">
-        <span className="text-sm text-slate-500 self-center">Marcar todos como:</span>
+      <div className="flex gap-2 flex-wrap items-center">
+        <span className="text-sm text-slate-500">Marcar todos:</span>
         {(['present','absent','late'] as AttStatus[]).map(status => {
-          const cfg = STATUS_CONFIG[status]
+          const cfg = STATUS_CFG[status]
           const Icon = cfg.icon
           return (
             <button key={status} onClick={() => markAll(status)}
@@ -199,7 +283,10 @@ export default function TeacherAttendance() {
       {/* Student list */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
         <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
-          <span className="text-xs text-slate-500">Toca el nombre para cambiar estado: Presente → Ausente → Tardanza</span>
+          <span className="text-xs text-slate-500 flex items-center gap-1.5">
+            <AlarmClock size={13} className="text-blue-400"/>
+            El ícono de campana indica que el representante envió un aviso previo
+          </span>
           {allMarked && (
             <span className="flex items-center gap-1 text-xs text-green-600 font-medium">
               <CheckCheck size={13}/>Todos marcados
@@ -216,28 +303,54 @@ export default function TeacherAttendance() {
           <div className="divide-y divide-slate-50">
             {students.map((s, idx) => {
               const status = attendance[s.id]
-              const cfg = status ? STATUS_CONFIG[status] : null
+              const cfg = status ? STATUS_CFG[status] : null
               const Icon = cfg?.icon
+              const notice = noticeByStudent[s.id]
+
               return (
                 <div key={s.id} className={clsx(
-                  'flex items-center justify-between px-5 py-3.5 transition-colors hover:bg-slate-50',
-                  status === 'absent' && 'bg-red-50/30',
-                  status === 'late' && 'bg-amber-50/30',
+                  'flex items-center gap-3 px-5 py-3.5 transition-colors',
+                  status === 'absent' && 'bg-red-50/40',
+                  status === 'late'   && 'bg-amber-50/40',
+                  !status && 'hover:bg-slate-50',
                 )}>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-slate-400 w-5 text-right">{idx + 1}</span>
-                    <div>
-                      <p className="font-medium text-slate-700 text-sm">{s.fullName}</p>
-                      <p className="text-xs text-slate-400">{s.grade} {s.section}</p>
+                  {/* Number */}
+                  <span className="text-xs text-slate-400 w-5 text-right shrink-0">{idx + 1}</span>
+
+                  {/* Student info + notice */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-slate-700 text-sm">{s.fullName}</span>
+                      {notice && (
+                        <span className={clsx(
+                          'inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-semibold',
+                          notice.type === 'late'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-red-100 text-red-700'
+                        )}>
+                          <Bell size={10}/>
+                          {notice.type === 'late' ? 'Aviso tardanza' : 'Aviso ausencia'}
+                        </span>
+                      )}
                     </div>
+                    {notice && (
+                      <p className="text-xs text-slate-500 mt-0.5 truncate">
+                        {notice.reason}
+                        {notice.type === 'late' && notice.expectedTime
+                          ? ` · llega ~${notice.expectedTime}`
+                          : ''}
+                      </p>
+                    )}
                   </div>
+
+                  {/* Status toggle button */}
                   <button onClick={() => toggle(s.id)}
                     className={clsx(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all min-w-[90px] justify-center',
+                      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all shrink-0 min-w-[92px] justify-center',
                       cfg ? cfg.color : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
                     )}>
-                    {Icon ? <Icon size={13}/> : <Minus size={13}/>}
-                    {cfg?.label || 'Sin marcar'}
+                    {Icon ? <Icon size={13}/> : <Clock size={13}/>}
+                    {cfg?.label ?? 'Sin marcar'}
                   </button>
                 </div>
               )
@@ -245,6 +358,11 @@ export default function TeacherAttendance() {
           </div>
         )}
       </div>
+
+      {/* Legend */}
+      <p className="text-xs text-slate-400 text-center">
+        Toca el botón de estado para cambiar: Sin marcar → Presente → Ausente → Tardanza
+      </p>
     </div>
   )
 }

@@ -79,6 +79,22 @@
     { "collectionGroup": "emailQueue", "queryScope": "COLLECTION", "fields": [
       {"fieldPath": "schoolId", "order": "ASCENDING"},
       {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "lateNotices", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "date", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
+    ]},
+    { "collectionGroup": "lateNotices", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "date", "order": "ASCENDING"},
+      {"fieldPath": "grade", "order": "ASCENDING"},
+      {"fieldPath": "section", "order": "ASCENDING"}
+    ]},
+    { "collectionGroup": "lateNotices", "queryScope": "COLLECTION", "fields": [
+      {"fieldPath": "representativeId", "order": "ASCENDING"},
+      {"fieldPath": "schoolId", "order": "ASCENDING"},
+      {"fieldPath": "createdAt", "order": "DESCENDING"}
     ]}
   ],
   "fieldOverrides": []
