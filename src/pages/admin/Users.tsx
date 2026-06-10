@@ -71,13 +71,13 @@ export default function AdminUsers() {
   })
 
   const approveMut = useMutation({
-    mutationFn: (userId: string) => approveUser(userId),
+    mutationFn: (userId: string) => approveUser(userId, schoolId),
     onSuccess: async (_, userId) => {
       const u = users.find(x => x.id === userId)
       await createAuditLog({
         schoolId,
         action: 'user_approved',
-        description: 'Representante ' + (u?.displayName || userId) + ' aprobado',
+        description: (u?.role === 'teacher' ? 'Docente ' : 'Representante ') + (u?.displayName || userId) + ' aprobado',
         performedBy: appUser!.id,
         performedByName: appUser!.displayName,
         metadata: { userId },

@@ -20,8 +20,18 @@ export const getUser = async (uid: string) => {
   const s = await getDoc(doc(db, 'users', uid)); return s.exists() ? fromDoc<AppUser>(s) : null
 }
 export const getUsersBySchool = async (schoolId: string) => {
-  const q = query(collection(db, 'users'), where('schoolId', '==', schoolId))
-  return (await getDocs(q)).docs.map(d => fromDoc<AppUser>(d))
+  // Main query: users already assigned to this school
+  const q1 = query(collection(db, 'users'), where('schoolId', '==', schoolId))
+  // Secondary query: users with pending school assignment (Google sign-in or old flow)
+  // who are awaiting approval — the admin who approves will "claim" them into their school
+  const q2 = query(collection(db, 'users'), where('schoolId', '==', 'pending'), where('status', '==', 'pending_approval'))
+  const [s1, s2] = await Promise.all([getDocs(q1), getDocs(q2)])
+  const seen = new Set<string>()
+  const results: AppUser[] = []
+  for (const snap of [...s1.docs, ...s2.docs]) {
+    if (!seen.has(snap.id)) { seen.add(snap.id); results.push(fromDoc<AppUser>(snap)) }
+  }
+  return results
 }
 export const updateUserRole = (uid: string, role: string, schoolId: string) =>
   updateDoc(doc(db, 'users', uid), { role, schoolId })
@@ -45,7 +55,8 @@ export const getStudentsBySchool = async (schoolId: string) => {
 }
 export const deleteStudent = (id: string) => deleteDoc(doc(db, 'students', id))
 export const deleteUser = (id: string) => deleteDoc(doc(db, 'users', id))
-export const approveUser = (id: string) => updateDoc(doc(db, 'users', id), { status: 'approved' })
+export const approveUser = (id: string, schoolId: string) =>
+  updateDoc(doc(db, 'users', id), { status: 'approved', schoolId })
 export const rejectUser  = (id: string) => deleteDoc(doc(db, 'users', id))
 
 export const updateStudent = (id: string, data: Partial<Student>) =>
