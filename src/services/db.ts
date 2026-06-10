@@ -61,9 +61,12 @@ export const getPaymentsBySchool = async (schoolId: string, lim = 500) => {
   return (await getDocs(q)).docs.map(d => fromDoc<Payment>(d))
 }
 export const getPendingPayments = async (schoolId: string) => {
+  // orderBy removed — index has DESC but query needed ASC, causing silent failure.
+  // Sort client-side instead.
   const q = query(collection(db, 'payments'),
-    where('schoolId', '==', schoolId), where('status', '==', 'in_review'), orderBy('createdAt', 'asc'))
-  return (await getDocs(q)).docs.map(d => fromDoc<Payment>(d))
+    where('schoolId', '==', schoolId), where('status', '==', 'in_review'))
+  const docs = (await getDocs(q)).docs.map(d => fromDoc<Payment>(d))
+  return docs.sort((a, b) => ((a as any).createdAt?.seconds ?? 0) - ((b as any).createdAt?.seconds ?? 0))
 }
 export const submitPaymentReceipt = (paymentId: string, receiptUrl: string, receiptType: string, amountPaid: number) =>
   updateDoc(doc(db, 'payments', paymentId), {
@@ -127,8 +130,10 @@ export const getMessagesBySchool = async (schoolId: string) => {
   return (await getDocs(q)).docs.map(d => fromDoc<Message>(d))
 }
 export const getMessagesByUser = async (userId: string) => {
-  const q = query(collection(db, 'messages'), where('fromUserId', '==', userId), orderBy('createdAt', 'desc'))
-  return (await getDocs(q)).docs.map(d => fromDoc<Message>(d))
+  // orderBy removed — no composite index for [fromUserId, createdAt]. Sort client-side.
+  const q = query(collection(db, 'messages'), where('fromUserId', '==', userId))
+  const docs = (await getDocs(q)).docs.map(d => fromDoc<Message>(d))
+  return docs.sort((a: any, b: any) => (b.createdAt?.seconds ?? 0) - (a.createdAt?.seconds ?? 0))
 }
 export const markMessageRead = (id: string) => updateDoc(doc(db, 'messages', id), { readByAdmin: true })
 export const closeMessage = (id: string) => updateDoc(doc(db, 'messages', id), { status: 'closed' })
@@ -302,8 +307,14 @@ export const deleteEvent = (id: string) => deleteDoc(doc(db, 'events', id))
 export const createTask = (data: any) =>
   addDoc(collection(db, 'tasks'), { ...data, createdAt: serverTimestamp() })
 export const getTasksBySchool = async (schoolId: string) => {
-  const q = query(collection(db, 'tasks'), where('schoolId', '==', schoolId), orderBy('dueDate', 'asc'))
-  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+  // orderBy removed — no composite index for [schoolId, dueDate] alone. Sort client-side.
+  const q = query(collection(db, 'tasks'), where('schoolId', '==', schoolId))
+  const docs = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() } as any))
+  return docs.sort((a: any, b: any) => {
+    const aD = a.dueDate?.seconds ?? 0
+    const bD = b.dueDate?.seconds ?? 0
+    return aD - bD
+  })
 }
 export const getTasksByGrade = async (schoolId: string, grade: string, section: string) => {
   const q = query(collection(db, 'tasks'),
@@ -361,8 +372,10 @@ export const getAllSupplies = async (schoolId: string) => {
 export const createMeeting = (data: any) =>
   addDoc(collection(db, 'meetings'), { ...data, createdAt: serverTimestamp() })
 export const getMeetingsBySchool = async (schoolId: string) => {
-  const q = query(collection(db, 'meetings'), where('schoolId', '==', schoolId), orderBy('date', 'desc'))
-  return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
+  // orderBy removed — no composite index for [schoolId, date]. Sort client-side.
+  const q = query(collection(db, 'meetings'), where('schoolId', '==', schoolId))
+  const docs = (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() } as any))
+  return docs.sort((a: any, b: any) => (b.date > a.date ? 1 : -1))
 }
 export const deleteMeeting = (id: string) => deleteDoc(doc(db, 'meetings', id))
 

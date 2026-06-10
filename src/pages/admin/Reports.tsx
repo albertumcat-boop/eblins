@@ -117,7 +117,7 @@ export default function AdminReports() {
 
   // KPIs
   const totalBilled   = filteredPayments.reduce((s, p) => s + p.amount, 0)
-  const totalCollected = filteredPayments.filter(p => p.status === 'approved').reduce((s, p) => s + p.amountPaid, 0)
+  const totalCollected = filteredPayments.filter(p => p.status === 'approved').reduce((s, p) => s + (p.amountPaid || 0), 0)
   const totalDebt     = filteredPayments.filter(p => p.status !== 'approved').reduce((s, p) => s + (p.balance || 0), 0)
   const effectiveness = totalBilled > 0 ? Math.round(totalCollected / totalBilled * 100) : 0
 
@@ -126,7 +126,7 @@ export default function AdminReports() {
     const map: Record<string, number> = {}
     filteredPayments.filter(p => p.status === 'approved').forEach(p => {
       const key = format(toDate(p.paidAt || p.createdAt), 'MMM yy', { locale: es })
-      map[key] = (map[key] || 0) + p.amountPaid
+      map[key] = (map[key] || 0) + (p.amountPaid || 0)
     })
     return Object.entries(map).slice(-12).map(([name, total]) => ({ name, total }))
   }, [filteredPayments])
@@ -135,9 +135,9 @@ export default function AdminReports() {
   const typeBreakdown = useMemo(() => {
     const approved = filteredPayments.filter(p => p.status === 'approved')
     return [
-      { name: 'Mensualidades', value: approved.filter(p => p.type === 'monthly').reduce((s, p) => s + p.amountPaid, 0) },
-      { name: 'Inscripciones', value: approved.filter(p => p.type === 'enrollment').reduce((s, p) => s + p.amountPaid, 0) },
-      { name: 'Adicionales',   value: approved.filter(p => p.type === 'additional').reduce((s, p) => s + p.amountPaid, 0) },
+      { name: 'Mensualidades', value: approved.filter(p => p.type === 'monthly').reduce((s, p) => s + (p.amountPaid || 0), 0) },
+      { name: 'Inscripciones', value: approved.filter(p => p.type === 'enrollment').reduce((s, p) => s + (p.amountPaid || 0), 0) },
+      { name: 'Adicionales',   value: approved.filter(p => p.type === 'additional').reduce((s, p) => s + (p.amountPaid || 0), 0) },
     ]
   }, [filteredPayments])
 
@@ -170,7 +170,7 @@ export default function AdminReports() {
     const monthMap: Record<string, number> = {}
     payments.filter(p => p.status === 'approved').forEach(p => {
       const key = format(toDate(p.paidAt || p.createdAt), 'yyyy-MM')
-      monthMap[key] = (monthMap[key] || 0) + p.amountPaid
+      monthMap[key] = (monthMap[key] || 0) + (p.amountPaid || 0)
     })
     const sorted = Object.entries(monthMap).sort(([a], [b]) => a.localeCompare(b)).slice(-6)
     if (sorted.length === 0) return []
