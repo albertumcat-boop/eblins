@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, getDocs, query, where, deleteDoc, doc } from 'firebase/firestore'
 import { db } from '@/services/firebase'
 import { useAuth } from '@/context/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 
 interface SchoolDoc {
   id: string
@@ -105,6 +106,9 @@ export default function SuperAdminPanel() {
   const [totalPayments, setTotalPayments] = useState(0)
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<SchoolRow | null>(null)
+  const [cleaning, setCleaning] = useState(false)
+  const [cleanConfirm, setCleanConfirm] = useState(false)
+  const [cleanResult, setCleanResult] = useState<{ deleted: number; roles: Record<string, number> } | null>(null)
 
   useEffect(() => {
     if (appUser?.email !== SUPER_ADMIN_EMAIL) {
@@ -146,6 +150,33 @@ export default function SuperAdminPanel() {
     }
   }
 
+  async function cleanNonAdminUsers() {
+    setCleaning(true)
+    setCleanResult(null)
+    try {
+      const snap = await getDocs(collection(db, 'users'))
+      const toDelete = snap.docs.filter(d => {
+        const role = d.data().role
+        return role === 'representative' || role === 'teacher'
+      })
+      const roleCounts: Record<string, number> = {}
+      for (const d of toDelete) {
+        const role = d.data().role as string
+        roleCounts[role] = (roleCounts[role] ?? 0) + 1
+        await deleteDoc(doc(db, 'users', d.id))
+      }
+      setCleanResult({ deleted: toDelete.length, roles: roleCounts })
+      toast.success(`${toDelete.length} usuario(s) eliminado(s)`)
+      setCleanConfirm(false)
+      loadData()
+    } catch (err) {
+      console.error(err)
+      toast.error('Error al eliminar usuarios')
+    } finally {
+      setCleaning(false)
+    }
+  }
+
   if (appUser?.email !== SUPER_ADMIN_EMAIL) return null
 
   return (
@@ -172,6 +203,56 @@ export default function SuperAdminPanel() {
               <KpiCard label="Total usuarios" value={totalUsers} />
               <KpiCard label="Total estudiantes" value={totalStudents} />
               <KpiCard label="Pagos aprobados" value={totalPayments} />
+            </div>
+
+            {/* Limpieza de usuarios */}
+            <div className="bg-white rounded-xl border border-red-200 overflow-hidden mb-8">
+              <div className="px-5 py-4 border-b border-red-100 flex items-center justify-between">
+                <div>
+                  <h2 className="font-semibold text-red-700">🗑️ Limpieza de usuarios</h2>
+                  <p className="text-xs text-slate-500 mt-0.5">Elimina todos los registros de representantes y docentes de Firestore. Los administradores NO se tocan.</p>
+                </div>
+                {!cleanConfirm && (
+                  <button
+                    onClick={() => setCleanConfirm(true)}
+                    className="text-sm bg-red-50 hover:bg-red-100 text-red-600 border border-red-200 px-4 py-2 rounded-lg font-medium transition-colors"
+                  >
+                    Limpiar usuarios
+                  </button>
+                )}
+              </div>
+
+              {cleanConfirm && (
+                <div className="px-5 py-4 bg-red-50">
+                  <p className="text-sm text-red-800 font-semibold mb-1">⚠️ ¿Confirmar eliminación?</p>
+                  <p className="text-xs text-red-600 mb-4">Se eliminarán TODOS los documentos en <code>/users</code> con rol <code>representative</code> o <code>teacher</code>. Esta acción no se puede deshacer.</p>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={cleanNonAdminUsers}
+                      disabled={cleaning}
+                      className="text-sm bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {cleaning && <span className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin inline-block"/>}
+                      {cleaning ? 'Eliminando...' : 'Sí, eliminar todos'}
+                    </button>
+                    <button
+                      onClick={() => setCleanConfirm(false)}
+                      className="text-sm border border-slate-200 text-slate-600 px-4 py-2 rounded-lg"
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {cleanResult && (
+                <div className="px-5 py-3 bg-green-50 border-t border-green-100">
+                  <p className="text-sm text-green-700 font-semibold">✅ Limpieza completada: {cleanResult.deleted} usuario(s) eliminado(s)</p>
+                  <p className="text-xs text-green-600 mt-0.5">
+                    {Object.entries(cleanResult.roles).map(([r, n]) => `${r}: ${n}`).join(' · ')}
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Table */}
