@@ -16,12 +16,13 @@ import {
 } from 'lucide-react'
 import clsx from 'clsx'
 
-type AttStatus = 'present' | 'absent' | 'late'
+type AttStatus = 'present' | 'absent' | 'late' | 'excused'
 
-const STATUS_CFG: Record<AttStatus, { label: string; color: string; icon: any }> = {
-  present: { label: 'Presente', color: 'bg-green-100 text-green-700 border-green-300', icon: Check },
-  absent:  { label: 'Ausente',  color: 'bg-red-100 text-red-700 border-red-300',       icon: X },
-  late:    { label: 'Tardanza', color: 'bg-amber-100 text-amber-700 border-amber-300', icon: Clock },
+const STATUS_CFG: Record<AttStatus, { label: string; short: string; color: string; selectedBg: string; icon: any }> = {
+  present: { label: 'Asistió',     short: '✓',  color: 'bg-green-100 text-green-700 border-green-300',   selectedBg: 'bg-green-600 text-white border-green-600',   icon: Check },
+  absent:  { label: 'Ausente',     short: '✗',  color: 'bg-red-100 text-red-700 border-red-300',         selectedBg: 'bg-red-600 text-white border-red-600',       icon: X },
+  late:    { label: 'Tardanza',    short: '⏰', color: 'bg-amber-100 text-amber-700 border-amber-300',   selectedBg: 'bg-amber-500 text-white border-amber-500',   icon: Clock },
+  excused: { label: 'Justificado', short: '📋', color: 'bg-blue-100 text-blue-700 border-blue-300',      selectedBg: 'bg-blue-600 text-white border-blue-600',     icon: Check },
 }
 
 const GRADES   = ['1er','2do','3er','4to','5to','6to','7mo','8vo','9no','10mo','11vo','12vo']
@@ -112,12 +113,11 @@ export default function TeacherAttendance() {
   const noticeByStudent: Record<string, LateNotice> = {}
   notices.forEach(n => { noticeByStudent[n.studentId] = n })
 
-  const toggle = (studentId: string) => {
-    setAttendance(prev => {
-      const cur = prev[studentId]
-      const next: AttStatus = !cur || cur === 'late' ? 'present' : cur === 'present' ? 'absent' : 'late'
-      return { ...prev, [studentId]: next }
-    })
+  const setStatus = (studentId: string, status: AttStatus) => {
+    setAttendance(prev => ({
+      ...prev,
+      [studentId]: prev[studentId] === status ? undefined as any : status,
+    }))
   }
 
   const markAll = (status: AttStatus) => {
@@ -125,6 +125,8 @@ export default function TeacherAttendance() {
     students.forEach(s => { all[s.id] = status })
     setAttendance(all)
   }
+
+  const allStatuses = Object.keys(STATUS_CFG) as AttStatus[]
 
   const handleSave = async () => {
     if (students.length === 0) { toast.error('No hay estudiantes en este grado/sección'); return }
@@ -150,6 +152,7 @@ export default function TeacherAttendance() {
     present:  Object.values(attendance).filter(v => v === 'present').length,
     absent:   Object.values(attendance).filter(v => v === 'absent').length,
     late:     Object.values(attendance).filter(v => v === 'late').length,
+    excused:  Object.values(attendance).filter(v => v === 'excused').length,
     unmarked: students.length - Object.values(attendance).filter(Boolean).length,
   }
   const allMarked = students.length > 0 && counts.unmarked === 0
@@ -241,10 +244,10 @@ export default function TeacherAttendance() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
         <div className="bg-green-50 border border-green-200 rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-green-700">{counts.present}</p>
-          <p className="text-xs font-medium text-green-600">Presentes</p>
+          <p className="text-xs font-medium text-green-600">Asistieron</p>
         </div>
         <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-center">
           <p className="text-2xl font-bold text-red-700">{counts.absent}</p>
@@ -254,12 +257,16 @@ export default function TeacherAttendance() {
           <p className="text-2xl font-bold text-amber-700">{counts.late}</p>
           <p className="text-xs font-medium text-amber-600">Tardanzas</p>
         </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-center">
+          <p className="text-2xl font-bold text-blue-700">{counts.excused}</p>
+          <p className="text-xs font-medium text-blue-600">Justificados</p>
+        </div>
         <div className={clsx('border rounded-xl p-3 text-center',
-          allMarked ? 'bg-blue-50 border-blue-200' : 'bg-slate-50 border-slate-200')}>
-          <p className={clsx('text-2xl font-bold', allMarked ? 'text-blue-700' : 'text-slate-500')}>
+          allMarked ? 'bg-purple-50 border-purple-200' : 'bg-slate-50 border-slate-200')}>
+          <p className={clsx('text-2xl font-bold', allMarked ? 'text-purple-700' : 'text-slate-500')}>
             {allMarked ? '✓' : counts.unmarked}
           </p>
-          <p className={clsx('text-xs font-medium', allMarked ? 'text-blue-600' : 'text-slate-400')}>
+          <p className={clsx('text-xs font-medium', allMarked ? 'text-purple-600' : 'text-slate-400')}>
             {allMarked ? 'Completado' : 'Sin marcar'}
           </p>
         </div>
@@ -268,7 +275,7 @@ export default function TeacherAttendance() {
       {/* Quick actions */}
       <div className="flex gap-2 flex-wrap items-center">
         <span className="text-sm text-slate-500">Marcar todos:</span>
-        {(['present','absent','late'] as AttStatus[]).map(status => {
+        {allStatuses.map(status => {
           const cfg = STATUS_CFG[status]
           const Icon = cfg.icon
           return (
@@ -343,15 +350,26 @@ export default function TeacherAttendance() {
                     )}
                   </div>
 
-                  {/* Status toggle button */}
-                  <button onClick={() => toggle(s.id)}
-                    className={clsx(
-                      'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all shrink-0 min-w-[92px] justify-center',
-                      cfg ? cfg.color : 'bg-slate-50 text-slate-400 border-slate-200 hover:bg-slate-100'
-                    )}>
-                    {Icon ? <Icon size={13}/> : <Clock size={13}/>}
-                    {cfg?.label ?? 'Sin marcar'}
-                  </button>
+                  {/* 4 status buttons */}
+                  <div className="flex gap-1 shrink-0 flex-wrap justify-end">
+                    {allStatuses.map(st => {
+                      const c = STATUS_CFG[st]
+                      const Ic = c.icon
+                      const isSelected = status === st
+                      return (
+                        <button key={st} onClick={() => setStatus(s.id, st)}
+                          title={c.label}
+                          className={clsx(
+                            'flex items-center gap-1 px-2 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+                            isSelected ? c.selectedBg : c.color + ' hover:opacity-80'
+                          )}>
+                          <Ic size={12}/>
+                          <span className="hidden md:inline">{c.label}</span>
+                          <span className="md:hidden">{c.short}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })}
@@ -361,7 +379,7 @@ export default function TeacherAttendance() {
 
       {/* Legend */}
       <p className="text-xs text-slate-400 text-center">
-        Toca el botón de estado para cambiar: Sin marcar → Presente → Ausente → Tardanza
+        Toca un botón para marcar el estado. Tócalo de nuevo para desmarcarlo.
       </p>
     </div>
   )

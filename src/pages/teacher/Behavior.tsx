@@ -7,14 +7,16 @@ import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } f
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import toast from 'react-hot-toast'
-import { Plus, X, ThumbsUp, ThumbsDown, AlertTriangle, Award } from 'lucide-react'
+import { Award, ChevronDown, Users, Calendar, History } from 'lucide-react'
+import clsx from 'clsx'
 
 const BEHAVIOR_TYPES = [
-  { value: 'excellent',  label: 'Excelente conducta', icon: Award,         color: 'bg-green-100 text-green-700 border-green-300',  emoji: '🏆' },
-  { value: 'good',       label: 'Buena conducta',     icon: ThumbsUp,      color: 'bg-blue-100 text-blue-700 border-blue-300',     emoji: '👍' },
-  { value: 'warning',    label: 'Llamado de atención', icon: AlertTriangle, color: 'bg-amber-100 text-amber-700 border-amber-300',  emoji: '⚠️' },
-  { value: 'minor',      label: 'Falta leve',         icon: ThumbsDown,    color: 'bg-orange-100 text-orange-700 border-orange-300', emoji: '⚡' },
-  { value: 'serious',    label: 'Falta grave',        icon: ThumbsDown,    color: 'bg-red-100 text-red-700 border-red-300',        emoji: '🚨' },
+  { value: 'excellent', label: 'Excelente',  emoji: '🏆', color: 'bg-green-100 text-green-700 border-green-300',   selectedBg: 'bg-green-600 text-white border-green-600',  negative: false },
+  { value: 'verygood',  label: 'Muy buena',  emoji: '⭐', color: 'bg-blue-100 text-blue-700 border-blue-300',      selectedBg: 'bg-blue-600 text-white border-blue-600',    negative: false },
+  { value: 'good',      label: 'Buena',      emoji: '👍', color: 'bg-teal-100 text-teal-700 border-teal-300',      selectedBg: 'bg-teal-600 text-white border-teal-600',    negative: false },
+  { value: 'warning',   label: 'Llamado',    emoji: '⚠️', color: 'bg-amber-100 text-amber-700 border-amber-300',   selectedBg: 'bg-amber-500 text-white border-amber-500',  negative: true  },
+  { value: 'minor',     label: 'Falta leve', emoji: '⚡', color: 'bg-orange-100 text-orange-700 border-orange-300',selectedBg: 'bg-orange-500 text-white border-orange-500',negative: true  },
+  { value: 'serious',   label: 'Falta grave',emoji: '🚨', color: 'bg-red-100 text-red-700 border-red-300',         selectedBg: 'bg-red-600 text-white border-red-600',      negative: true  },
 ]
 
 const CONSEQUENCES = [
@@ -22,22 +24,36 @@ const CONSEQUENCES = [
   'Suspensión 1 día', 'Suspensión 3 días', 'Suspensión 5 días', 'Otro',
 ]
 
+const GRADES   = ['1er','2do','3er','4to','5to','6to','7mo','8vo','9no','10mo','11vo','12vo']
+const SECTIONS = ['A','B','C','D','E']
+
+interface StudentRow {
+  id: string
+  selectedType: string | null
+  description: string
+  consequence: string
+  saving: boolean
+  saved: boolean
+}
+
 export default function TeacherBehavior() {
   const { appUser } = useAuth()
   const qc = useQueryClient()
-  const [showModal, setShowModal] = useState(false)
-  const [selectedStudent, setSelectedStudent] = useState('')
-  const [form, setForm] = useState({
-    type: 'good', description: '', consequence: 'Ninguna', date: format(new Date(), 'yyyy-MM-dd'),
-  })
-  const [saving, setSaving] = useState(false)
+  const today = format(new Date(), 'yyyy-MM-dd')
+  const [selectedDate, setSelectedDate] = useState(today)
+  const [gradeFilter, setGradeFilter]   = useState('1er')
+  const [sectionFilter, setSectionFilter] = useState('A')
+  const [rows, setRows] = useState<Record<string, StudentRow>>({})
+  const [showHistory, setShowHistory] = useState(false)
   const [filterStudent, setFilterStudent] = useState('')
 
-  const { data: students = [] } = useQuery({
+  const { data: allStudents = [] } = useQuery({
     queryKey: ['students', appUser?.schoolId],
     queryFn: () => getStudentsBySchool(appUser!.schoolId),
     enabled: !!appUser?.schoolId,
   })
+
+  const students = allStudents.filter(s => s.grade === gradeFilter && s.section === sectionFilter)
 
   const { data: records = [] } = useQuery({
     queryKey: ['behavior', appUser?.schoolId, filterStudent],
@@ -51,183 +67,249 @@ export default function TeacherBehavior() {
     enabled: !!appUser?.schoolId,
   })
 
-  const handleSave = async () => {
-    if (!selectedStudent || !form.description) {
-      toast.error('Completa todos los campos')
+  const getRow = (studentId: string): StudentRow =>
+    rows[studentId] ?? { id: studentId, selectedType: null, description: '', consequence: 'Ninguna', saving: false, saved: false }
+
+  const setRow = (studentId: string, patch: Partial<StudentRow>) =>
+    setRows(prev => ({ ...prev, [studentId]: { ...getRow(studentId), ...patch } }))
+
+  const selectType = (studentId: string, typeValue: string) => {
+    const bt = BEHAVIOR_TYPES.find(b => b.value === typeValue)!
+    const row = getRow(studentId)
+    // Toggle off if already selected
+    if (row.selectedType === typeValue) {
+      setRow(studentId, { selectedType: null, description: '', consequence: 'Ninguna', saved: false })
       return
     }
-    setSaving(true)
-    try {
-      const student = students.find(s => s.id === selectedStudent)
-      await addDoc(collection(db, 'behavior'), {
-        studentId:       selectedStudent,
-        studentName:     student?.fullName,
-        schoolId:        appUser!.schoolId,
-        teacherId:       appUser!.id,
-        teacherName:     appUser!.displayName,
-        type:            form.type,
-        description:     form.description,
-        consequence:     form.consequence,
-        date:            form.date,
-        createdAt:       serverTimestamp(),
-      })
-
-      if (['warning', 'minor', 'serious'].includes(form.type)) {
-        await addDoc(collection(db, 'notifications'), {
-          userId:    student?.representativeId,
-          schoolId:  appUser!.schoolId,
-          title:     `${BEHAVIOR_TYPES.find(b => b.value === form.type)?.emoji} Reporte de conducta`,
-          body:      `${student?.fullName}: ${form.description}. Consecuencia: ${form.consequence}`,
-          type:      'system',
-          read:      false,
-          createdAt: serverTimestamp(),
-        })
-      }
-
-      toast.success('Registro guardado')
-      qc.invalidateQueries({ queryKey: ['behavior'] })
-      setShowModal(false)
-      setForm({ type: 'good', description: '', consequence: 'Ninguna', date: format(new Date(), 'yyyy-MM-dd') })
-      setSelectedStudent('')
-    } catch { toast.error('Error al guardar') }
-    finally { setSaving(false) }
+    setRow(studentId, { selectedType: typeValue, description: '', consequence: 'Ninguna', saved: false })
+    // Auto-save positive behaviors immediately
+    if (!bt.negative) saveRecord(studentId, typeValue, 'Conducta positiva registrada', 'Ninguna')
   }
 
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }))
+  const saveRecord = async (studentId: string, typeValue: string, description: string, consequence: string) => {
+    setRow(studentId, { saving: true })
+    try {
+      const student = allStudents.find(s => s.id === studentId)
+      const bt = BEHAVIOR_TYPES.find(b => b.value === typeValue)!
+      await addDoc(collection(db, 'behavior'), {
+        studentId, studentName: student?.fullName,
+        schoolId: appUser!.schoolId,
+        teacherId: appUser!.id, teacherName: appUser!.displayName,
+        type: typeValue, description, consequence,
+        date: selectedDate, createdAt: serverTimestamp(),
+      })
+      if (bt.negative && student?.representativeId) {
+        await addDoc(collection(db, 'notifications'), {
+          userId: student.representativeId,
+          schoolId: appUser!.schoolId,
+          title: `${bt.emoji} Reporte de conducta`,
+          body: `${student.fullName}: ${description}. Consecuencia: ${consequence}`,
+          type: 'system', read: false, createdAt: serverTimestamp(),
+        })
+      }
+      setRow(studentId, { saving: false, saved: true, description: '', consequence: 'Ninguna' })
+      toast.success(`Conducta guardada — ${student?.fullName}`)
+      qc.invalidateQueries({ queryKey: ['behavior'] })
+    } catch {
+      setRow(studentId, { saving: false })
+      toast.error('Error al guardar')
+    }
+  }
+
+  const handleSaveNegative = (studentId: string) => {
+    const row = getRow(studentId)
+    if (!row.selectedType || !row.description.trim()) {
+      toast.error('Describe el motivo de la conducta negativa')
+      return
+    }
+    saveRecord(studentId, row.selectedType, row.description, row.consequence)
+  }
 
   return (
     <div className="space-y-5">
+      {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-slate-800">Control de Conducta</h1>
-        <button onClick={() => setShowModal(true)}
-          className="flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-purple-700">
-          <Plus size={16}/> Nuevo registro
+        <button onClick={() => setShowHistory(v => !v)}
+          className="flex items-center gap-2 border border-slate-200 text-slate-600 px-4 py-2 rounded-xl text-sm font-medium hover:bg-slate-50">
+          <History size={15}/>{showHistory ? 'Ocultar historial' : 'Ver historial'}
         </button>
       </div>
 
-      <div className="flex gap-2 flex-wrap">
-        <button onClick={() => setFilterStudent('')}
-          className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${!filterStudent ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 text-slate-700'}`}>
-          Todos
-        </button>
-        {students.map(s => (
-          <button key={s.id} onClick={() => setFilterStudent(s.id)}
-            className={`px-4 py-2 rounded-xl text-sm font-medium border transition-colors ${filterStudent === s.id ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 text-slate-700'}`}>
-            {s.fullName}
-          </button>
+      {/* Filters */}
+      <div className="bg-white rounded-xl border border-slate-200 p-4 flex flex-wrap gap-4 items-end">
+        <div>
+          <label className="text-xs font-medium text-slate-500 block mb-1.5">Fecha</label>
+          <div className="flex items-center gap-2">
+            <Calendar size={15} className="text-slate-400"/>
+            <input type="date" value={selectedDate} max={today}
+              onChange={e => { setSelectedDate(e.target.value); setRows({}) }}
+              className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"/>
+          </div>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-slate-500 block mb-1.5">Grado</label>
+          <select value={gradeFilter} onChange={e => { setGradeFilter(e.target.value); setRows({}) }}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+            {GRADES.map(g => <option key={g}>{g}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="text-xs font-medium text-slate-500 block mb-1.5">Sección</label>
+          <select value={sectionFilter} onChange={e => { setSectionFilter(e.target.value); setRows({}) }}
+            className="border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+            {SECTIONS.map(s => <option key={s}>{s}</option>)}
+          </select>
+        </div>
+        <div className="flex items-center gap-1.5 ml-auto text-sm text-slate-500">
+          <Users size={15}/>{students.length} estudiantes
+        </div>
+      </div>
+
+      {/* Legend */}
+      <div className="flex flex-wrap gap-2">
+        {BEHAVIOR_TYPES.map(b => (
+          <span key={b.value} className={clsx('inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border', b.color)}>
+            {b.emoji} {b.label}
+          </span>
         ))}
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {BEHAVIOR_TYPES.filter(b => ['excellent','good','warning','serious'].includes(b.value)).map(b => {
-          const count = records.filter((r: any) => r.type === b.value).length
-          return (
-            <div key={b.value} className={`rounded-xl border p-3 text-center ${b.color}`}>
-              <p className="text-2xl">{b.emoji}</p>
-              <p className="text-xl font-bold mt-1">{count}</p>
-              <p className="text-xs font-medium">{b.label}</p>
-            </div>
-          )
-        })}
-      </div>
-
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-        <div className="px-5 py-3 border-b border-slate-100 text-sm font-medium text-slate-600">
-          Historial ({records.length} registros)
+      {/* Student list */}
+      {students.length === 0 ? (
+        <div className="bg-white rounded-xl border border-slate-200 py-16 text-center text-slate-400">
+          <Users size={32} className="mx-auto mb-2 opacity-30"/>
+          <p className="text-sm">No hay estudiantes en {gradeFilter} {sectionFilter}</p>
         </div>
-        {records.length === 0 ? (
-          <div className="text-center py-12 text-slate-400">
-            <Award size={32} className="mx-auto mb-2 opacity-30"/>
-            <p className="text-sm">Sin registros de conducta</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {(records as any[]).map(r => {
-              const bt = BEHAVIOR_TYPES.find(b => b.value === r.type)
-              return (
-                <div key={r.id} className="px-5 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <span className="text-xl mt-0.5">{bt?.emoji}</span>
-                      <div>
-                        <p className="font-medium text-slate-800">{r.studentName}</p>
-                        <p className="text-sm text-slate-600 mt-0.5">{r.description}</p>
-                        {r.consequence !== 'Ninguna' && (
-                          <p className="text-xs text-red-600 mt-1 font-medium">
-                            Consecuencia: {r.consequence}
-                          </p>
-                        )}
-                        <p className="text-xs text-slate-400 mt-1">
-                          {r.teacherName} · {format(new Date(r.date + 'T12:00:00'), "d 'de' MMMM yyyy", { locale: es })}
-                        </p>
-                      </div>
-                    </div>
-                    <span className={`text-xs px-2 py-1 rounded-full font-medium border ${bt?.color}`}>
-                      {bt?.label}
-                    </span>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </div>
+      ) : (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden divide-y divide-slate-100">
+          {students.map((s, idx) => {
+            const row = getRow(s.id)
+            const selectedBt = BEHAVIOR_TYPES.find(b => b.value === row.selectedType)
 
-      {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 sticky top-0 bg-white">
-              <h3 className="font-bold text-slate-800">Nuevo registro de conducta</h3>
-              <button onClick={() => setShowModal(false)}><X size={20} className="text-slate-400"/></button>
-            </div>
-            <div className="px-6 py-4 space-y-4">
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Estudiante</label>
-                <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  value={selectedStudent} onChange={e => setSelectedStudent(e.target.value)}>
-                  <option value="">Seleccionar estudiante</option>
-                  {students.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Tipo de conducta</label>
-                <div className="grid grid-cols-1 gap-2">
-                  {BEHAVIOR_TYPES.map(b => (
-                    <button key={b.value} onClick={() => setForm(f => ({ ...f, type: b.value }))}
-                      className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all ${form.type === b.value ? b.color : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
-                      <span>{b.emoji}</span>{b.label}
+            return (
+              <div key={s.id} className={clsx(
+                'px-4 py-3 transition-colors',
+                row.saved && 'bg-green-50/50',
+              )}>
+                {/* Student name + number */}
+                <div className="flex items-center gap-3 mb-2.5">
+                  <span className="text-xs text-slate-400 w-5 text-right shrink-0">{idx + 1}</span>
+                  <span className="font-medium text-slate-700 text-sm flex-1">{s.fullName}</span>
+                  {row.saved && selectedBt && (
+                    <span className={clsx('text-xs px-2 py-0.5 rounded-full font-semibold border', selectedBt.color)}>
+                      {selectedBt.emoji} Guardado
+                    </span>
+                  )}
+                </div>
+
+                {/* Quick buttons */}
+                <div className="flex flex-wrap gap-1.5 ml-8">
+                  {BEHAVIOR_TYPES.map(bt => (
+                    <button
+                      key={bt.value}
+                      disabled={row.saving || row.saved}
+                      onClick={() => selectType(s.id, bt.value)}
+                      className={clsx(
+                        'flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all',
+                        row.selectedType === bt.value ? bt.selectedBg : bt.color,
+                        (row.saving || row.saved) && 'opacity-50 cursor-not-allowed',
+                      )}>
+                      <span>{bt.emoji}</span>
+                      <span className="hidden sm:inline">{bt.label}</span>
                     </button>
                   ))}
                 </div>
+
+                {/* Negative behavior form — expands inline */}
+                {row.selectedType && selectedBt?.negative && !row.saved && (
+                  <div className="ml-8 mt-3 space-y-2 border-l-2 border-red-200 pl-3">
+                    <textarea
+                      rows={2}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400 resize-none"
+                      placeholder="¿Qué ocurrió? Describe la situación..."
+                      value={row.description}
+                      onChange={e => setRow(s.id, { description: e.target.value })}
+                    />
+                    <div className="flex gap-2 items-center flex-wrap">
+                      <select
+                        className="border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-red-400 flex-1 min-w-[180px]"
+                        value={row.consequence}
+                        onChange={e => setRow(s.id, { consequence: e.target.value })}>
+                        {CONSEQUENCES.map(c => <option key={c}>{c}</option>)}
+                      </select>
+                      <button
+                        onClick={() => handleSaveNegative(s.id)}
+                        disabled={row.saving || !row.description.trim()}
+                        className="flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-xl text-xs font-semibold hover:bg-red-700 disabled:opacity-50">
+                        {row.saving ? 'Guardando...' : '💾 Guardar'}
+                      </button>
+                      <button
+                        onClick={() => setRow(s.id, { selectedType: null, description: '', consequence: 'Ninguna' })}
+                        className="text-xs text-slate-400 hover:text-slate-600 px-2 py-1.5">
+                        Cancelar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Descripción</label>
-                <textarea rows={3} className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 resize-none"
-                  placeholder="Describe la situación con detalle..."
-                  value={form.description} onChange={set('description')}/>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Consecuencia</label>
-                <select className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  value={form.consequence} onChange={set('consequence')}>
-                  {CONSEQUENCES.map(c => <option key={c}>{c}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-slate-700 block mb-1.5">Fecha</label>
-                <input type="date" className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  value={form.date} onChange={set('date')}/>
-              </div>
-            </div>
-            <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
-              <button onClick={() => setShowModal(false)} className="flex-1 border border-slate-200 text-slate-600 py-2.5 rounded-xl text-sm">Cancelar</button>
-              <button disabled={!selectedStudent || !form.description || saving} onClick={handleSave}
-                className="flex-1 bg-purple-600 text-white py-2.5 rounded-xl text-sm hover:bg-purple-700 disabled:opacity-50 font-medium">
-                {saving ? 'Guardando...' : 'Guardar registro'}
+            )
+          })}
+        </div>
+      )}
+
+      {/* History (collapsible) */}
+      {showHistory && (
+        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+            <span className="text-sm font-medium text-slate-700 flex items-center gap-2">
+              <History size={15} className="text-purple-500"/> Historial de conducta
+            </span>
+            <div className="flex gap-1 flex-wrap">
+              <button onClick={() => setFilterStudent('')}
+                className={clsx('px-3 py-1 rounded-lg text-xs font-medium border',
+                  !filterStudent ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 text-slate-600')}>
+                Todos
               </button>
+              {allStudents.slice(0, 8).map(s => (
+                <button key={s.id} onClick={() => setFilterStudent(s.id)}
+                  className={clsx('px-3 py-1 rounded-lg text-xs font-medium border',
+                    filterStudent === s.id ? 'bg-purple-600 text-white border-purple-600' : 'border-slate-200 text-slate-600')}>
+                  {s.fullName.split(' ')[0]}
+                </button>
+              ))}
             </div>
           </div>
+          {records.length === 0 ? (
+            <div className="text-center py-10 text-slate-400">
+              <Award size={28} className="mx-auto mb-2 opacity-30"/>
+              <p className="text-sm">Sin registros</p>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100 max-h-96 overflow-y-auto">
+              {(records as any[]).map(r => {
+                const bt = BEHAVIOR_TYPES.find(b => b.value === r.type)
+                return (
+                  <div key={r.id} className="px-5 py-3 flex items-start gap-3">
+                    <span className="text-lg mt-0.5">{bt?.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-medium text-slate-800 text-sm">{r.studentName}</span>
+                        <span className={clsx('text-xs px-2 py-0.5 rounded-full font-medium border', bt?.color)}>{bt?.label}</span>
+                      </div>
+                      <p className="text-xs text-slate-500 mt-0.5">{r.description}</p>
+                      {r.consequence !== 'Ninguna' && (
+                        <p className="text-xs text-red-600 font-medium mt-0.5">Consecuencia: {r.consequence}</p>
+                      )}
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {format(new Date(r.date + 'T12:00:00'), "d 'de' MMMM yyyy", { locale: es })} · {r.teacherName}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </div>
