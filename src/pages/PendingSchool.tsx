@@ -1,10 +1,19 @@
+import { useState } from 'react'
 import { useAuth } from '@/context/AuthContext'
-import { Clock, LogOut, Mail } from 'lucide-react'
+import { Clock, LogOut, Mail, RefreshCw } from 'lucide-react'
 
 export default function PendingSchool() {
-  const { appUser, logout } = useAuth()
+  const { appUser, logout, refreshAppUser } = useAuth()
+  const [checking, setChecking] = useState(false)
 
   const isPendingApproval = appUser?.status === 'pending_approval'
+
+  const handleCheck = async () => {
+    setChecking(true)
+    await refreshAppUser()
+    // Give React a tick to re-evaluate routes; if still pending, show feedback
+    setTimeout(() => setChecking(false), 1500)
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4" style={{ background: '#050d1a' }}>
@@ -43,9 +52,19 @@ export default function PendingSchool() {
           </div>
         )}
 
+        {isPendingApproval && (
+          <button
+            onClick={handleCheck}
+            disabled={checking}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors text-sm mb-3 disabled:opacity-60">
+            <RefreshCw size={15} className={checking ? 'animate-spin' : ''}/>
+            {checking ? 'Verificando...' : 'Ya me aprobaron, verificar acceso'}
+          </button>
+        )}
+
         <button
           onClick={() => logout()}
-          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-xl transition-colors text-sm">
+          className="w-full flex items-center justify-center gap-2 py-2.5 px-4 border border-slate-600 text-slate-300 hover:bg-slate-800 font-medium rounded-xl transition-colors text-sm">
           <LogOut size={15}/> Cerrar sesión
         </button>
       </div>

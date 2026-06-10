@@ -1,4 +1,4 @@
-const CACHE_NAME = 'edufinance-v1'
+const CACHE_NAME = 'edufinance-v2'
 const STATIC_ASSETS = [
   '/',
   '/index.html',
