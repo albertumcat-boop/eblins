@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
-import { getUsersBySchool, updateUserRole, deleteUser, createAuditLog } from '@/services/db'
+import { getUsersBySchool, updateUserRole, deleteUser, approveUser, rejectUser, createAuditLog } from '@/services/db'
 import toast from 'react-hot-toast'
-import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle } from 'lucide-react'
+import { Search, Shield, User, GraduationCap, Trash2, X, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import type { AppUser, UserRole } from '@/types'
@@ -68,7 +68,38 @@ export default function AdminUsers() {
     onError: () => toast.error('Error al eliminar usuario'),
   })
 
-  const filtered = users.filter(u => {
+  const approveMut = useMutation({
+    mutationFn: (userId: string) => approveUser(userId),
+    onSuccess: async (_, userId) => {
+      const u = users.find(x => x.id === userId)
+      await createAuditLog({
+        schoolId,
+        action: 'user_approved',
+        description: 'Representante ' + (u?.displayName || userId) + ' aprobado',
+        performedBy: appUser!.id,
+        performedByName: appUser!.displayName,
+        metadata: { userId },
+      }).catch(() => {})
+      toast.success('Representante aprobado')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: () => toast.error('Error al aprobar usuario'),
+  })
+
+  const rejectMut = useMutation({
+    mutationFn: (userId: string) => rejectUser(userId),
+    onSuccess: (_, userId) => {
+      const u = users.find(x => x.id === userId)
+      toast.success((u?.displayName || 'Usuario') + ' rechazado y eliminado')
+      qc.invalidateQueries({ queryKey: ['users'] })
+    },
+    onError: () => toast.error('Error al rechazar'),
+  })
+
+  const pending = users.filter((u: any) => u.status === 'pending_approval')
+  const active  = users.filter((u: any) => u.status !== 'pending_approval')
+
+  const filtered = active.filter(u => {
     const ms = !search || u.displayName?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
     const mr = roleFilter === 'all' || u.role === roleFilter
     return ms && mr
@@ -77,6 +108,46 @@ export default function AdminUsers() {
   return (
     <div className="space-y-5">
       <h1 className="text-2xl font-bold text-slate-800">Usuarios</h1>
+
+      {/* ── Solicitudes pendientes de aprobación ───────────────── */}
+      {pending.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-amber-200 flex items-center gap-2">
+            <Clock size={16} className="text-amber-600"/>
+            <span className="font-semibold text-amber-800 text-sm">
+              Solicitudes pendientes de aprobación — {pending.length}
+            </span>
+          </div>
+          <div className="divide-y divide-amber-100">
+            {pending.map((u: any) => (
+              <div key={u.id} className="flex items-center gap-3 px-5 py-3">
+                <div className="w-9 h-9 rounded-full bg-amber-200 flex items-center justify-center text-sm font-bold text-amber-800 shrink-0">
+                  {u.displayName?.[0]?.toUpperCase() || '?'}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-slate-800 text-sm truncate">{u.displayName}</p>
+                  <p className="text-xs text-slate-500 truncate">{u.email}</p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    onClick={() => approveMut.mutate(u.id)}
+                    disabled={approveMut.isPending}
+                    className="flex items-center gap-1.5 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-green-700 disabled:opacity-50">
+                    <CheckCircle size={13}/> Aprobar
+                  </button>
+                  <button
+                    onClick={() => rejectMut.mutate(u.id)}
+                    disabled={rejectMut.isPending}
+                    className="flex items-center gap-1.5 border border-red-300 text-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-50 disabled:opacity-50">
+                    <X size={13}/> Rechazar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
@@ -99,7 +170,7 @@ export default function AdminUsers() {
             <div key={role} className="bg-white rounded-xl border border-slate-200 p-4 flex items-center gap-3">
               <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${cfg.color}`}><Icon size={18}/></div>
               <div>
-                <p className="text-2xl font-bold text-slate-800">{users.filter(u => u.role === role).length}</p>
+                <p className="text-2xl font-bold text-slate-800">{active.filter(u => u.role === role).length}</p>
                 <p className="text-xs text-slate-500">{cfg.label}s</p>
               </div>
             </div>

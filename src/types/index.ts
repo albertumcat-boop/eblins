@@ -15,6 +15,7 @@ export interface SchoolSettings {
 export interface AppUser {
   id: string; schoolId: string; email: string; displayName: string
   photoURL?: string; role: UserRole; phone?: string; createdAt: Date; lastLogin?: Date
+  status?: 'pending_approval' | 'approved'
   // Teacher-specific: grade(s) assigned to this teacher (used as UX guardrail)
   assignedGrade?: string; assignedSection?: string; subject?: string
 }

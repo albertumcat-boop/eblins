@@ -45,6 +45,8 @@ export const getStudentsBySchool = async (schoolId: string) => {
 }
 export const deleteStudent = (id: string) => deleteDoc(doc(db, 'students', id))
 export const deleteUser = (id: string) => deleteDoc(doc(db, 'users', id))
+export const approveUser = (id: string) => updateDoc(doc(db, 'users', id), { status: 'approved' })
+export const rejectUser  = (id: string) => deleteDoc(doc(db, 'users', id))
 
 export const updateStudent = (id: string, data: Partial<Student>) =>
   updateDoc(doc(db, 'students', id), data)
