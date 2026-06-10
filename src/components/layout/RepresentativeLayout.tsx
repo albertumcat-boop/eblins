@@ -4,7 +4,7 @@ import {
   LayoutDashboard, CreditCard, Megaphone, MessagesSquare, User,
   FileText, CalendarDays, ListTodo, Clock, ShoppingBag, Video,
   BookOpen, CalendarCheck, ShieldAlert, MessageSquare,
-  LogOut, Bell, Menu, X, MoreHorizontal,
+  LogOut, Bell, Menu, X, MoreHorizontal, AlarmClock,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
 import { subscribeToNotifications, markNotificationRead } from '@/services/db'
@@ -32,7 +32,8 @@ const MORE_NAV = [
   { to: '/attendance', icon: CalendarCheck,  label: 'Asistencia' },
   { to: '/behavior',   icon: ShieldAlert,    label: 'Conducta' },
   { to: '/reportcards',icon: FileText,       label: 'Boletas' },
-  { to: '/messages',   icon: MessageSquare,  label: 'Mensajes' },
+  { to: '/messages',    icon: MessageSquare,  label: 'Mensajes' },
+  { to: '/late-notice', icon: AlarmClock,     label: 'Tardanza/Ausencia' },
 ]
 
 // Full sidebar nav (desktop)

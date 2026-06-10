@@ -23,6 +23,7 @@ import AdminSupplies from '@/pages/admin/Supplies'
 import AdminImport from '@/pages/admin/Import'
 import AdminStripeConfig from '@/pages/admin/StripeConfig'
 import AdminEmailQueue from '@/pages/admin/EmailQueue'
+import AdminLateNotices from '@/pages/admin/LateNotices'
 import RepDashboard from '@/pages/representative/Dashboard'
 import RepPayments from '@/pages/representative/Payments'
 import RepAnnouncements from '@/pages/representative/Announcements'
@@ -39,6 +40,7 @@ import RepTasks from '@/pages/representative/Tasks'
 import RepSchedules from '@/pages/representative/Schedules'
 import RepSupplies from '@/pages/representative/Supplies'
 import RepMeetings from '@/pages/representative/Meetings'
+import RepLateNotice from '@/pages/representative/LateNotice'
 import TeacherDashboard from '@/pages/teacher/Dashboard'
 import TeacherAnnouncements from '@/pages/teacher/Announcements'
 import TeacherStudents from '@/pages/teacher/Students'
@@ -99,6 +101,7 @@ function AppRoutes() {
         <Route path="import" element={<AdminImport />} />
         <Route path="stripe-config" element={<AdminStripeConfig />} />
         <Route path="email-queue" element={<AdminEmailQueue />} />
+        <Route path="late-notices" element={<AdminLateNotices />} />
         <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<NotFound />} />
@@ -138,6 +141,7 @@ function AppRoutes() {
         <Route path="import" element={<AdminImport />} />
         <Route path="stripe-config" element={<AdminStripeConfig />} />
         <Route path="email-queue" element={<AdminEmailQueue />} />
+        <Route path="late-notices" element={<AdminLateNotices />} />
         <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<NotFound />} />
@@ -162,6 +166,7 @@ function AppRoutes() {
         <Route path="schedules" element={<RepSchedules />} />
         <Route path="supplies" element={<RepSupplies />} />
         <Route path="meetings" element={<RepMeetings />} />
+        <Route path="late-notice" element={<RepLateNotice />} />
         <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<NotFound />} />

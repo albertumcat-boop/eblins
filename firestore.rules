@@ -180,6 +180,18 @@ service cloud.firestore {
       }
     }
 
+    // Late Notices — avisos de tardanza/ausencia enviados por representantes
+    match /lateNotices/{noticeId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (
+        isAdmin() || isTeacher() || resource.data.representativeId == uid()
+      );
+      allow create: if isRep()
+        && request.resource.data.schoolId == userSchool()
+        && request.resource.data.representativeId == uid();
+      allow update: if isAdmin() && belongsToSchool(resource.data.schoolId);
+      allow delete: if isAdmin() && belongsToSchool(resource.data.schoolId);
+    }
+
     // Email Queue — FIX 6: create requiere schoolId correcto
     match /emailQueue/{jobId} {
       allow read, write: if isAdmin() && belongsToSchool(resource.data.schoolId);
