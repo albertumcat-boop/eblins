@@ -23,12 +23,22 @@ export default function LoginPage() {
     if (!resetEmail) return
     setResetLoading(true)
     try {
-      await sendPasswordResetEmail(auth, resetEmail)
-      toast.success('Correo de recuperación enviado. Revisa tu bandeja.')
+      const actionCodeSettings = {
+        url: window.location.origin + '/login',
+        handleCodeInApp: false,
+      }
+      await sendPasswordResetEmail(auth, resetEmail, actionCodeSettings)
+      toast.success('¡Listo! Revisa tu correo (incluyendo la carpeta de spam).', { duration: 6000 })
       setResetMode(false)
+      setResetEmail('')
     } catch (err: any) {
-      if (err.code === 'auth/user-not-found') toast.error('No existe cuenta con ese correo')
-      else toast.error('Error al enviar el correo')
+      // Firebase no revela si el correo existe por seguridad — mostramos éxito igual
+      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-email') {
+        toast.success('Si ese correo está registrado, recibirás un enlace pronto.', { duration: 6000 })
+        setResetMode(false)
+      } else {
+        toast.error('Error al enviar. Intenta nuevamente.')
+      }
     } finally { setResetLoading(false) }
   }
 
