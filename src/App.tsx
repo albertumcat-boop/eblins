@@ -117,10 +117,11 @@ function AppRoutes() {
       <Route path="*" element={<Navigate to="/onboarding" replace />} />
     </Routes>
   )
-  // Cuenta pendiente de asignación a escuela (no admin)
+  // Cuenta pendiente de asignación a escuela (no admin) — solo bloquear si NO está aprobado
   if (
     (appUser.schoolId === 'pending' || appUser.schoolId === 'school_default') &&
-    appUser.role !== 'admin'
+    appUser.role !== 'admin' &&
+    appUser.status !== 'approved'
   ) return <PendingSchool />
   // Representante pendiente de aprobación por el admin
   if ((appUser.role === 'representative' || appUser.role === 'teacher') && appUser.status === 'pending_approval') return <PendingSchool />

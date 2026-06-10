@@ -55,8 +55,13 @@ export const getStudentsBySchool = async (schoolId: string) => {
 }
 export const deleteStudent = (id: string) => deleteDoc(doc(db, 'students', id))
 export const deleteUser = (id: string) => deleteDoc(doc(db, 'users', id))
-export const approveUser = (id: string, schoolId: string) =>
-  updateDoc(doc(db, 'users', id), { status: 'approved', schoolId })
+export const approveUser = async (id: string, schoolId: string) => {
+  const snap = await getDoc(doc(db, 'users', id))
+  const current = snap.data()
+  // Only override schoolId if it's a placeholder; if user already has a real schoolId, keep it
+  const newSchoolId = (!current?.schoolId || current.schoolId === 'pending') ? schoolId : current.schoolId
+  return updateDoc(doc(db, 'users', id), { status: 'approved', schoolId: newSchoolId })
+}
 export const rejectUser  = (id: string) => deleteDoc(doc(db, 'users', id))
 
 export const updateStudent = (id: string, data: Partial<Student>) =>
