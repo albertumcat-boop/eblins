@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import {
   getStudentsByRepresentative, createStudent, generateMonthlyPayments,
   checkAndCreatePaymentReminders, getPaymentsByRepresentative, getNotificationsByUser,
-  linkRepresentativeToStudents,
+  linkRepresentativeToStudents, getSchool,
 } from '@/services/db'
 import { Link } from 'react-router-dom'
 import { format, differenceInDays } from 'date-fns'
@@ -47,7 +47,13 @@ export default function RepresentativeDashboard() {
   const qc = useQueryClient()
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
-    fullName: '', grade: '1er', section: 'A', schoolYear: '2024-2025'
+    fullName: '', grade: '1er', section: 'A', schoolYear: ''
+  })
+
+  const { data: school } = useQuery({
+    queryKey: ['school', appUser?.schoolId],
+    queryFn: () => getSchool(appUser!.schoolId),
+    enabled: !!appUser?.schoolId,
   })
 
   const { data: students = [], isLoading } = useQuery({
@@ -81,20 +87,23 @@ export default function RepresentativeDashboard() {
     }
   }, [appUser?.schoolId])
 
+  const currentSchoolYear = school?.settings?.currentSchoolYear || new Date().getFullYear() + '-' + (new Date().getFullYear() + 1)
+
   const createMut = useMutation({
     mutationFn: () => createStudent({
-      fullName:         form.fullName,
-      grade:            form.grade,
-      section:          form.section,
-      schoolYear:       form.schoolYear,
-      schoolId:         appUser!.schoolId,
-      representativeId: appUser!.id,
-      enrollmentCode:   generateCode(),
+      fullName:           form.fullName,
+      grade:              form.grade,
+      section:            form.section,
+      schoolYear:         form.schoolYear || currentSchoolYear,
+      schoolId:           appUser!.schoolId,
+      representativeId:   appUser!.id,
+      representativeEmail: appUser!.email?.toLowerCase().trim(),
+      enrollmentCode:     generateCode(),
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-students'] })
       setShowModal(false)
-      setForm({ fullName: '', grade: '1er', section: 'A', schoolYear: '2024-2025' })
+      setForm({ fullName: '', grade: '1er', section: 'A', schoolYear: '' })
     },
   })
 
@@ -371,7 +380,7 @@ export default function RepresentativeDashboard() {
                 <label className="text-sm font-medium text-slate-700 block mb-1.5">Año escolar</label>
                 <input
                   className="w-full border border-slate-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="2024-2025"
+                  placeholder={currentSchoolYear}
                   value={form.schoolYear} onChange={set('schoolYear')}
                 />
               </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { getStudentsBySchool } from '@/services/db'
@@ -44,6 +44,11 @@ export default function TeacherBehavior() {
   const [gradeFilter, setGradeFilter]   = useState(appUser?.assignedGrade || '1er')
   const [sectionFilter, setSectionFilter] = useState(appUser?.assignedSection || 'A')
   const [rows, setRows] = useState<Record<string, StudentRow>>({})
+
+  useEffect(() => {
+    if (appUser?.assignedGrade) setGradeFilter(appUser.assignedGrade)
+    if (appUser?.assignedSection) setSectionFilter(appUser.assignedSection)
+  }, [appUser?.assignedGrade, appUser?.assignedSection])
   const [showHistory, setShowHistory] = useState(false)
   const [filterStudent, setFilterStudent] = useState('')
 

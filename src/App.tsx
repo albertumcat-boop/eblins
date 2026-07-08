@@ -62,11 +62,20 @@ import DemoSeeder from '@/pages/admin/DemoSeeder'
 const qc = new QueryClient({ defaultOptions: { queries: { staleTime: 120_000 } } })
 
 function AppRoutes() {
-  const { appUser, loading } = useAuth()
+  const { appUser, loading, firebaseUser } = useAuth()
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
       <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"/>
     </div>
+  )
+  // Firebase Auth has a session but no Firestore profile — Google user who closed the onboarding modal.
+  // Send to /login so they can re-trigger the Google onboarding flow.
+  if (!appUser && firebaseUser) return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/legal" element={<Legal />} />
+      <Route path="*" element={<Navigate to="/login" replace />} />
+    </Routes>
   )
   if (!appUser) return (
     <Routes>

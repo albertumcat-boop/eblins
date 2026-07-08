@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import toast from 'react-hot-toast'
@@ -12,7 +12,7 @@ const ROLES = [
 ]
 
 export default function LoginPage() {
-  const { signIn, signInWithGoogle, completeGoogleProfile } = useAuth()
+  const { signIn, signInWithGoogle, completeGoogleProfile, firebaseUser, appUser } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -25,6 +25,12 @@ export default function LoginPage() {
 
   // Google new-user onboarding modal
   const [showGoogleModal, setShowGoogleModal] = useState(false)
+
+  // If arriving here with a Firebase session but no Firestore profile (closed modal mid-flow),
+  // show the onboarding modal automatically so they can complete registration.
+  useEffect(() => {
+    if (firebaseUser && !appUser) setShowGoogleModal(true)
+  }, [firebaseUser, appUser])
   const [googleRole, setGoogleRole] = useState('representative')
   const [googleSchoolCode, setGoogleSchoolCode] = useState('')
   const [googleCompleting, setGoogleCompleting] = useState(false)

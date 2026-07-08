@@ -1,6 +1,6 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, onSnapshot, increment, writeBatch,
+  collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
+  query, where, orderBy, limit, serverTimestamp, onSnapshot, increment, writeBatch, arrayUnion,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { format } from 'date-fns'
@@ -195,35 +195,21 @@ export const createAnnouncement = async (data: Omit<Announcement, 'id' | 'create
       )
       const results = await Promise.all(studentPromises)
       const repIds = new Set<string>()
-      results.forEach(snap => snap.docs.forEach((d: any) => repIds.add(d.data().representativeId)))
-      for (const repId of repIds) {
-        const repSnap = await getDoc(doc(db, 'users', repId))
-        if (!repSnap.exists()) continue
-        const rep = repSnap.data() as AppUser
-        await queueEmail({
-          to: rep.email,
-          subject: `Nuevo anuncio: ${data.title}`,
-          type: 'announcement',
-          schoolId: data.schoolId,
-          data: { representativeName: rep.displayName, title: data.title, body: data.body, teacherName: data.teacherName, announcementId: r.id },
-        })
-      }
+      results.forEach(snap => snap.docs.forEach((d: any) => { if (d.data().representativeId) repIds.add(d.data().representativeId) }))
+      const repSnaps = await Promise.all([...repIds].map(id => getDoc(doc(db, 'users', id))))
+      await Promise.all(repSnaps.filter(s => s.exists()).map(s => {
+        const rep = s.data() as AppUser
+        return queueEmail({ to: rep.email, subject: `Nuevo anuncio: ${data.title}`, type: 'announcement', schoolId: data.schoolId, data: { representativeName: rep.displayName, title: data.title, body: data.body, teacherName: data.teacherName, announcementId: r.id } })
+      }))
     } else {
       // Anuncio general: obtener todos los representantes de la escuela
       studentsSnap = await getDocs(query(collection(db, 'students'), where('schoolId', '==', data.schoolId)))
-      const repIds = new Set<string>(studentsSnap.docs.map((d: any) => d.data().representativeId))
-      for (const repId of repIds) {
-        const repSnap = await getDoc(doc(db, 'users', repId))
-        if (!repSnap.exists()) continue
-        const rep = repSnap.data() as AppUser
-        await queueEmail({
-          to: rep.email,
-          subject: `Nuevo anuncio: ${data.title}`,
-          type: 'announcement',
-          schoolId: data.schoolId,
-          data: { representativeName: rep.displayName, title: data.title, body: data.body, teacherName: data.teacherName, announcementId: r.id },
-        })
-      }
+      const repIds = new Set<string>(studentsSnap.docs.map((d: any) => d.data().representativeId).filter(Boolean))
+      const repSnaps = await Promise.all([...repIds].map(id => getDoc(doc(db, 'users', id))))
+      await Promise.all(repSnaps.filter(s => s.exists()).map(s => {
+        const rep = s.data() as AppUser
+        return queueEmail({ to: rep.email, subject: `Nuevo anuncio: ${data.title}`, type: 'announcement', schoolId: data.schoolId, data: { representativeName: rep.displayName, title: data.title, body: data.body, teacherName: data.teacherName, announcementId: r.id } })
+      }))
     }
   } catch { /* no interrumpir el flujo principal */ }
   return r.id
@@ -232,13 +218,8 @@ export const getAnnouncementsBySchool = async (schoolId: string) => {
   const q = query(collection(db, 'announcements'), where('schoolId', '==', schoolId), orderBy('createdAt', 'desc'), limit(50))
   return (await getDocs(q)).docs.map(d => fromDoc<Announcement>(d))
 }
-export const markAnnouncementRead = async (id: string, repId: string) => {
-  const ref = doc(db, 'announcements', id)
-  const s = await getDoc(ref)
-  if (!s.exists()) return
-  const cur: string[] = s.data().readBy || []
-  if (!cur.includes(repId)) await updateDoc(ref, { readBy: [...cur, repId] })
-}
+export const markAnnouncementRead = (id: string, repId: string) =>
+  updateDoc(doc(db, 'announcements', id), { readBy: arrayUnion(repId) })
 
 export const createNotification = (data: Omit<Notification, 'id' | 'createdAt'>) =>
   addDoc(collection(db, 'notifications'), { ...data, read: false, createdAt: serverTimestamp() })
@@ -270,15 +251,15 @@ export const generateMonthlyPayments = async (schoolId: string) => {
   if (today < billing.billingDay) return
   const students = await getStudentsBySchool(schoolId)
   for (const student of students) {
-    const q = query(collection(db, 'payments'),
-      where('studentId', '==', student.id),
-      where('monthKey', '==', monthKey),
-      where('type', '==', 'monthly'))
-    const existing = await getDocs(q)
-    if (!existing.empty) continue
+    if (!student.representativeId) continue
+    // Deterministic doc ID prevents duplicates under concurrent calls
+    const paymentDocId = `${student.id}_${monthKey}_monthly`
+    const paymentRef = doc(db, 'payments', paymentDocId)
+    const existing = await getDoc(paymentRef)
+    if (existing.exists()) continue
     const rep = await getDoc(doc(db, 'users', student.representativeId))
     if (!rep.exists()) continue
-    await addDoc(collection(db, 'payments'), {
+    await setDoc(paymentRef, {
       studentId: student.id, schoolId,
       representativeId: student.representativeId,
       type: 'monthly',
@@ -433,6 +414,9 @@ export const createSchool = async (data: {
 
 export const setUserSchool = (userId: string, schoolId: string, role: string) =>
   updateDoc(doc(db, 'users', userId), { schoolId, role })
+
+export const updateTeacherAssignment = (uid: string, assignedGrade: string, assignedSection: string) =>
+  updateDoc(doc(db, 'users', uid), { assignedGrade, assignedSection })
 
 export const getPaymentsByRepresentative = async (schoolId: string, representativeId: string) => {
   const q = query(

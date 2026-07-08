@@ -453,8 +453,9 @@ export default function AdminUsers() {
                 Vas a eliminar a <strong>{confirmDelete.displayName}</strong> del sistema.
               </p>
               <p className="text-xs text-slate-400">{confirmDelete.email} &mdash; {ROLE_CONFIG[confirmDelete.role as UserRole]?.label}</p>
-              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
-                <strong>Nota:</strong> Esto elimina el perfil. El usuario no podra acceder hasta volver a registrarse.
+              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800 space-y-1">
+                <p><strong>Importante:</strong> Esto elimina el perfil del sistema. El usuario ya no podrá navegar en la app.</p>
+                <p className="text-amber-700">Si el usuario tiene cuenta con contraseña, deberá ser eliminado también desde la consola de Firebase Auth para impedir que vuelva a registrarse con el mismo correo.</p>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-slate-100 flex gap-3">
