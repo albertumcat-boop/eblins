@@ -76,13 +76,13 @@ export default function RepresentativeDashboard() {
 
   useEffect(() => {
     if (appUser?.schoolId) {
-      generateMonthlyPayments(appUser.schoolId).catch(() => {})
-      checkAndCreatePaymentReminders(appUser.schoolId, appUser.id).catch(() => {})
+      generateMonthlyPayments(appUser.schoolId).catch(e => console.warn('[EduFinance] generateMonthlyPayments:', e))
+      checkAndCreatePaymentReminders(appUser.schoolId, appUser.id).catch(e => console.warn('[EduFinance] reminders:', e))
       // Auto-link any students imported before this rep registered
       if (appUser.email) {
         linkRepresentativeToStudents(appUser.id, appUser.email, appUser.schoolId)
           .then(count => { if (count > 0) qc.invalidateQueries({ queryKey: ['my-students'] }) })
-          .catch(() => {})
+          .catch(e => console.warn('[EduFinance] linkReps:', e))
       }
     }
   }, [appUser?.schoolId])

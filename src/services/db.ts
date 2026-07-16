@@ -138,8 +138,10 @@ export const approvePayment = async (paymentId: string, adminId: string) => {
   } catch { /* no interrumpir el flujo principal */ }
 }
 export const rejectPayment = async (paymentId: string, reason: string) => {
+  const snap = await getDoc(doc(db, 'payments', paymentId))
+  const amount = snap.exists() ? (snap.data()?.amount ?? 0) : 0
   await updateDoc(doc(db, 'payments', paymentId), {
-    status: 'rejected', rejectionReason: reason, receiptUrl: null, amountPaid: 0
+    status: 'rejected', rejectionReason: reason, receiptUrl: null, amountPaid: 0, balance: amount
   })
   try {
     const snap = await getDoc(doc(db, 'payments', paymentId))

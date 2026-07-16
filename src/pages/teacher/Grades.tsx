@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { getStudentsBySchool } from '@/services/db'
@@ -22,6 +22,11 @@ export default function TeacherGrades() {
   const [showModal, setShowModal] = useState(false)
   const [filterGrade, setFilterGrade] = useState(appUser?.assignedGrade || '')
   const [filterSection, setFilterSection] = useState(appUser?.assignedSection || '')
+
+  useEffect(() => {
+    if (appUser?.assignedGrade) setFilterGrade(appUser.assignedGrade)
+    if (appUser?.assignedSection) setFilterSection(appUser.assignedSection)
+  }, [appUser?.assignedGrade, appUser?.assignedSection])
 
   const { data: students = [] } = useQuery({
     queryKey: ['students', appUser?.schoolId],

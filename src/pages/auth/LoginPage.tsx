@@ -12,7 +12,7 @@ const ROLES = [
 ]
 
 export default function LoginPage() {
-  const { signIn, signInWithGoogle, completeGoogleProfile, firebaseUser, appUser } = useAuth()
+  const { signIn, signInWithGoogle, completeGoogleProfile, firebaseUser, appUser, loading: authLoading } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -29,8 +29,8 @@ export default function LoginPage() {
   // If arriving here with a Firebase session but no Firestore profile (closed modal mid-flow),
   // show the onboarding modal automatically so they can complete registration.
   useEffect(() => {
-    if (firebaseUser && !appUser) setShowGoogleModal(true)
-  }, [firebaseUser, appUser])
+    if (!authLoading && firebaseUser && !appUser) setShowGoogleModal(true)
+  }, [authLoading, firebaseUser, appUser])
   const [googleRole, setGoogleRole] = useState('representative')
   const [googleSchoolCode, setGoogleSchoolCode] = useState('')
   const [googleCompleting, setGoogleCompleting] = useState(false)
