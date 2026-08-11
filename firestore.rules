@@ -49,7 +49,14 @@ service cloud.firestore {
         belongsToSchool(resource.data.schoolId) &&
         (isAdmin() || isTeacher() || resource.data.representativeId == uid())
       );
-      allow create: if isSignedIn() && belongsToSchool(request.resource.data.schoolId);
+      // Representatives can only create payments with status='in_review' (receipt already uploaded)
+      // and cannot pre-set amountPaid > 0 on a new document without a receipt verification.
+      allow create: if isSignedIn() && belongsToSchool(request.resource.data.schoolId)
+        && (isAdmin() || (
+          isRep()
+          && request.resource.data.status == 'in_review'
+          && request.resource.data.representativeId == uid()
+        ));
       allow update: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (
         isAdmin() ||
         (resource.data.representativeId == uid() && resource.data.status == 'pending')
@@ -70,8 +77,14 @@ service cloud.firestore {
     match /announcements/{announcementId} {
       allow read:   if isSignedIn() && belongsToSchool(resource.data.schoolId);
       allow create: if (isTeacher() || isAdmin()) && request.resource.data.schoolId == userSchool();
-      allow update: if (isAdmin() && belongsToSchool(resource.data.schoolId)) ||
-                       (isTeacher() && resource.data.teacherId == uid() && belongsToSchool(resource.data.schoolId));
+      // Admins can update any field. Teachers can edit their own announcements but NOT readBy.
+      // Representatives can ONLY update readBy (to mark as read) and no other field.
+      allow update: if
+        (isAdmin() && belongsToSchool(resource.data.schoolId)) ||
+        (isTeacher() && resource.data.teacherId == uid() && belongsToSchool(resource.data.schoolId)
+          && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['readBy'])) ||
+        (isRep() && belongsToSchool(resource.data.schoolId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['readBy']));
       allow delete: if (isAdmin() && belongsToSchool(resource.data.schoolId)) ||
                        (isTeacher() && resource.data.teacherId == uid() && belongsToSchool(resource.data.schoolId));
     }

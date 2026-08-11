@@ -285,7 +285,7 @@ export default function Import() {
           createdAt: serverTimestamp(),
         })
         imported++
-      } catch { failed++ }
+      } catch (e) { console.warn('[EduFinance] import row failed:', e); failed++ }
       setProgress(Math.round(((i + 1) / rows.length) * 100))
     }
 

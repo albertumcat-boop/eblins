@@ -128,7 +128,14 @@ export default function AdminPayments() {
 
   return (
     <div className="space-y-5">
-      <h1 className="text-2xl font-bold text-slate-800">Gestión de Pagos</h1>
+      <div className="flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-slate-800">Gestión de Pagos</h1>
+        {payments.length >= 200 && (
+          <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+            Mostrando los últimos 200 pagos
+          </span>
+        )}
+      </div>
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>
@@ -201,7 +208,7 @@ export default function AdminPayments() {
             <textarea className="w-full border border-slate-200 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-500"
               rows={3} placeholder="Motivo de rechazo..." value={rejectReason} onChange={e => setRejectReason(e.target.value)}/>
             <div className="flex gap-3 mt-4">
-              <button onClick={() => setShowRejectModal(false)} className="flex-1 border border-slate-200 text-slate-600 py-2 rounded-lg text-sm hover:bg-slate-50">Cancelar</button>
+              <button onClick={() => { setShowRejectModal(false); setRejectReason('') }} className="flex-1 border border-slate-200 text-slate-600 py-2 rounded-lg text-sm hover:bg-slate-50">Cancelar</button>
               <button disabled={!rejectReason.trim() || rejectMut.isPending} onClick={() => rejectMut.mutate({ id: selectedPayment.id, reason: rejectReason })}
                 className="flex-1 bg-red-600 text-white py-2 rounded-lg text-sm hover:bg-red-700 disabled:opacity-50">Rechazar</button>
             </div>

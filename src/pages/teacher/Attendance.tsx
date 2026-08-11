@@ -4,8 +4,8 @@ import { useAuth } from '@/context/AuthContext'
 import { getStudentsBySchool } from '@/services/db'
 import { db } from '@/services/firebase'
 import {
-  collection, addDoc, getDocs, query, where,
-  serverTimestamp, updateDoc, doc,
+  collection, getDocs, query, where,
+  serverTimestamp, setDoc, doc,
 } from 'firebase/firestore'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -76,11 +76,8 @@ export default function TeacherAttendance() {
       const snap = await getDocs(q)
       if (!snap.empty) {
         const data = snap.docs[0].data()
-        setAttendance(data.records || {})
         return { id: snap.docs[0].id, ...data }
       }
-      // No saved record yet — pre-fill from lateNotices (applied after notices load)
-      setAttendance({})
       return null
     },
     enabled: !!appUser?.schoolId,
@@ -98,22 +95,28 @@ export default function TeacherAttendance() {
         where('section', '==', sectionFilter),
       )
       const snap = await getDocs(q)
-      const result = snap.docs.map(d => ({ id: d.id, ...d.data() } as LateNotice))
-
-      // If no attendance saved yet, pre-fill states from notices
-      setAttendance(prev => {
-        const hasSaved = Object.keys(prev).length > 0
-        if (hasSaved) return prev           // don't overwrite teacher's work
-        const prefilled: Record<string, AttStatus> = {}
-        result.forEach(n => {
-          prefilled[n.studentId] = n.type === 'late' ? 'late' : 'absent'
-        })
-        return prefilled
-      })
-      return result
+      return snap.docs.map(d => ({ id: d.id, ...d.data() } as LateNotice))
     },
     enabled: !!appUser?.schoolId,
   })
+
+  // Sync attendance state from queries — existingAtt wins over notices prefill,
+  // both resolved before applying so there's no race between the two queries.
+  useEffect(() => {
+    if (existingAtt !== undefined) {
+      if (existingAtt) {
+        setAttendance((existingAtt as any).records || {})
+      } else if (notices.length > 0) {
+        const prefilled: Record<string, AttStatus> = {}
+        notices.forEach((n: LateNotice) => {
+          prefilled[n.studentId] = n.type === 'late' ? 'late' : 'absent'
+        })
+        setAttendance(prefilled)
+      } else {
+        setAttendance({})
+      }
+    }
+  }, [existingAtt, notices])
 
   // Build a map: studentId → notice (for quick lookup in the list)
   const noticeByStudent: Record<string, LateNotice> = {}
@@ -138,19 +141,20 @@ export default function TeacherAttendance() {
     if (students.length === 0) { toast.error('No hay estudiantes en este grado/sección'); return }
     setSaving(true)
     try {
-      const data = {
+      // Deterministic ID prevents duplicate documents on double-click or concurrent saves
+      const attId = `att_${appUser!.schoolId}_${gradeFilter}_${sectionFilter}_${selectedDate}`
+      await setDoc(doc(db, 'attendance', attId), {
         date: selectedDate, schoolId: appUser!.schoolId, teacherId: appUser!.id,
         grade: gradeFilter, section: sectionFilter,
         records: attendance, updatedAt: serverTimestamp(),
-      }
-      if (existingAtt) {
-        await updateDoc(doc(db, 'attendance', (existingAtt as any).id), data)
-      } else {
-        await addDoc(collection(db, 'attendance'), { ...data, createdAt: serverTimestamp() })
-      }
+        createdAt: existingAtt ? (existingAtt as any).createdAt : serverTimestamp(),
+      })
       toast.success(`Asistencia guardada — ${gradeFilter} ${sectionFilter}`)
       qc.invalidateQueries({ queryKey: ['attendance'] })
-    } catch { toast.error('Error al guardar') }
+    } catch (e) {
+      console.warn('[EduFinance] attendance save:', e)
+      toast.error('Error al guardar')
+    }
     finally { setSaving(false) }
   }
 

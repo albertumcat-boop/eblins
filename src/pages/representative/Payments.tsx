@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { getStudentsByRepresentative, getPaymentsByStudent, getSchool } from '@/services/db'
 import { uploadReceipt } from '@/services/storage'
 import { db } from '@/services/firebase'
-import { addDoc, collection, serverTimestamp, updateDoc, doc } from 'firebase/firestore'
+import { doc, collection, setDoc, serverTimestamp } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 import { format, isAfter, differenceInDays } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -125,35 +125,34 @@ function NewPaymentModal({ onClose, schoolId, representativeId, students, paymen
     }
     setUploading(true)
     try {
-      const paymentRef = await addDoc(collection(db, 'payments'), {
+      // Upload receipt BEFORE creating the Firestore document — avoids orphan payments
+      // if the network drops between addDoc and the receipt upload.
+      const newPaymentRef = doc(collection(db, 'payments'))
+      const { url, type } = await uploadReceipt(file, schoolId, form.studentId, newPaymentRef.id, setProgress)
+      await setDoc(newPaymentRef, {
         studentId:       form.studentId,
         schoolId,
         representativeId,
         type:            form.type,
         description:     form.description || PAYMENT_TYPES.find(t => t.value === form.type)?.label,
         amount:          parseFloat(form.amount),
-        amountPaid:      0,
-        balance:         parseFloat(form.amount),
+        amountPaid:      parseFloat(form.amount),
+        balance:         0,
         currency:        form.currency,
         reference:       form.reference,
         paymentMethod:   form.paymentMethod,
-        status:          'pending',
+        receiptUrl:      url,
+        receiptType:     type,
+        status:          'in_review',
         isFractioned:    false,
+        paidAt:          serverTimestamp(),
         createdAt:       serverTimestamp(),
-      })
-      const { url, type } = await uploadReceipt(file, schoolId, form.studentId, paymentRef.id, setProgress)
-      await updateDoc(doc(db, 'payments', paymentRef.id), {
-        receiptUrl:  url,
-        receiptType: type,
-        status:      'in_review',
-        amountPaid:  parseFloat(form.amount),
-        balance:     0,
-        paidAt:      serverTimestamp(),
       })
       qc.invalidateQueries({ queryKey: ['student-payments'] })
       onClose()
       onSuccess()
-    } catch {
+    } catch (e) {
+      console.warn('[EduFinance] payment submit:', e)
       toast.error('Error al registrar el pago')
     } finally { setUploading(false) }
   }

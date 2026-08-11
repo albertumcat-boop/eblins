@@ -1,6 +1,6 @@
 import {
   collection, doc, getDoc, getDocs, addDoc, setDoc, updateDoc, deleteDoc,
-  query, where, orderBy, limit, serverTimestamp, onSnapshot, increment, writeBatch, arrayUnion,
+  query, where, orderBy, limit, serverTimestamp, onSnapshot, writeBatch, arrayUnion,
 } from 'firebase/firestore'
 import { db } from './firebase'
 import { format } from 'date-fns'
@@ -112,11 +112,6 @@ export const getPendingPayments = async (schoolId: string) => {
   const docs = (await getDocs(q)).docs.map(d => fromDoc<Payment>(d))
   return docs.sort((a, b) => ((a as any).createdAt?.seconds ?? 0) - ((b as any).createdAt?.seconds ?? 0))
 }
-export const submitPaymentReceipt = (paymentId: string, receiptUrl: string, receiptType: string, amountPaid: number) =>
-  updateDoc(doc(db, 'payments', paymentId), {
-    receiptUrl, receiptType, amountPaid: increment(amountPaid),
-    balance: increment(-amountPaid), status: 'in_review', paidAt: serverTimestamp()
-  })
 export const approvePayment = async (paymentId: string, adminId: string) => {
   await updateDoc(doc(db, 'payments', paymentId), { status: 'approved', approvedBy: adminId, approvedAt: serverTimestamp() })
   try {
@@ -138,26 +133,23 @@ export const approvePayment = async (paymentId: string, adminId: string) => {
   } catch { /* no interrumpir el flujo principal */ }
 }
 export const rejectPayment = async (paymentId: string, reason: string) => {
-  const snap = await getDoc(doc(db, 'payments', paymentId))
-  const amount = snap.exists() ? (snap.data()?.amount ?? 0) : 0
+  const preSnap = await getDoc(doc(db, 'payments', paymentId))
+  if (!preSnap.exists()) return
+  const p = preSnap.data() as Payment
   await updateDoc(doc(db, 'payments', paymentId), {
-    status: 'rejected', rejectionReason: reason, receiptUrl: null, amountPaid: 0, balance: amount
+    status: 'rejected', rejectionReason: reason, receiptUrl: null, amountPaid: 0, balance: p.amount ?? 0
   })
   try {
-    const snap = await getDoc(doc(db, 'payments', paymentId))
-    if (snap.exists()) {
-      const p = snap.data() as Payment
-      const repSnap = await getDoc(doc(db, 'users', p.representativeId))
-      if (repSnap.exists()) {
-        const rep = repSnap.data() as AppUser
-        await queueEmail({
-          to: rep.email,
-          subject: `Pago rechazado: ${p.description || p.monthLabel || 'Pago'}`,
-          type: 'payment_rejected',
-          schoolId: p.schoolId,
-          data: { representativeName: rep.displayName, paymentDescription: p.description || p.monthLabel, reason, paymentId },
-        })
-      }
+    const repSnap = await getDoc(doc(db, 'users', p.representativeId))
+    if (repSnap.exists()) {
+      const rep = repSnap.data() as AppUser
+      await queueEmail({
+        to: rep.email,
+        subject: `Pago rechazado: ${p.description || p.monthLabel || 'Pago'}`,
+        type: 'payment_rejected',
+        schoolId: p.schoolId,
+        data: { representativeName: rep.displayName, paymentDescription: p.description || p.monthLabel, reason, paymentId },
+      })
     }
   } catch { /* no interrumpir el flujo principal */ }
 }
