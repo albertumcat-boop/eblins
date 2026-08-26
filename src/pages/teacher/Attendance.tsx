@@ -4,7 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { getStudentsBySchool } from '@/services/db'
 import { db } from '@/services/firebase'
 import {
-  collection, getDocs, query, where,
+  collection, getDocs, getDoc, query, where,
   serverTimestamp, setDoc, doc,
 } from 'firebase/firestore'
 import { format } from 'date-fns'
@@ -62,23 +62,13 @@ export default function TeacherAttendance() {
 
   const students = allStudents.filter(s => s.grade === gradeFilter && s.section === sectionFilter)
 
-  // Load attendance record for this date/grade/section
+  // Load attendance record for this date/grade/section using the same deterministic ID as handleSave
   const { data: existingAtt } = useQuery({
     queryKey: ['attendance', selectedDate, appUser?.schoolId, gradeFilter, sectionFilter],
     queryFn: async () => {
-      const q = query(
-        collection(db, 'attendance'),
-        where('date', '==', selectedDate),
-        where('schoolId', '==', appUser!.schoolId),
-        where('grade', '==', gradeFilter),
-        where('section', '==', sectionFilter),
-      )
-      const snap = await getDocs(q)
-      if (!snap.empty) {
-        const data = snap.docs[0].data()
-        return { id: snap.docs[0].id, ...data }
-      }
-      return null
+      const attId = `att_${appUser!.schoolId}_${gradeFilter}_${sectionFilter}_${selectedDate}`
+      const snap = await getDoc(doc(db, 'attendance', attId))
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null
     },
     enabled: !!appUser?.schoolId,
   })

@@ -205,10 +205,10 @@ service cloud.firestore {
       allow delete: if isAdmin() && belongsToSchool(resource.data.schoolId);
     }
 
-    // Email Queue — FIX 6: create requiere schoolId correcto
+    // Email Queue — solo admin y teacher pueden encolar emails
     match /emailQueue/{jobId} {
       allow read, write: if isAdmin() && belongsToSchool(resource.data.schoolId);
-      allow create: if isSignedIn() && request.resource.data.schoolId == userSchool();
+      allow create: if (isAdmin() || isTeacher()) && request.resource.data.schoolId == userSchool();
     }
   }
 }
