@@ -167,22 +167,22 @@ export default function AdminSchedules() {
           Horario — {grade} grado sección {section}
         </div>
         <div className="overflow-x-auto">
-          <table className="w-full text-sm border-collapse">
+          <table className="w-full text-sm border-collapse border border-slate-300">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-200">
-                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-28 whitespace-nowrap">
+              <tr className="bg-slate-100 border-b-2 border-slate-300">
+                <th className="text-left px-3 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide w-28 whitespace-nowrap border-r border-slate-300">
                   <Clock size={13} className="inline mr-1 opacity-60"/>Hora
                 </th>
                 {days.map(d=>(
-                  <th key={d} className="text-center px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[130px]">{d}</th>
+                  <th key={d} className="text-center px-2 py-3 text-xs font-semibold text-slate-600 uppercase tracking-wide min-w-[130px] border-r border-slate-300">{d}</th>
                 ))}
                 <th className="w-10"/>
               </tr>
             </thead>
             <tbody>
               {blocks.map((block, row) => (
-                <tr key={row} className="border-b border-slate-100 hover:bg-slate-50/50 group">
-                  <td className="px-2 py-1.5">
+                <tr key={row} className="border-b border-slate-200 hover:bg-blue-50/30 group">
+                  <td className="px-2 py-1.5 border-r border-slate-200 bg-slate-50">
                     <div className="flex items-center gap-1">
                       <GripVertical size={12} className="text-slate-300 shrink-0"/>
                       <div className="flex items-center gap-1">
@@ -202,7 +202,7 @@ export default function AdminSchedules() {
                     const isReceso = subj.toLowerCase()==='receso'
                     const color = colorMap[subj.trim()] || ''
                     return (
-                      <td key={day} className="px-1.5 py-1.5 text-center">
+                      <td key={day} className="px-1.5 py-1.5 text-center border-r border-slate-200">
                         {isEditing ? (
                           <input ref={inputRef} value={subj}
                             onChange={e=>setSubject(row,day,e.target.value)}
