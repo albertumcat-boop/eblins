@@ -195,8 +195,8 @@ export default function AdminPayments() {
                               <FileText size={15}/>
                             </button>
                           )}
-                          {p.status === 'in_review' && <button onClick={() => approveMut.mutate(p.id)} disabled={approveMut.isPending} className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded-lg"><CheckCircle size={15}/></button>}
-                          {p.status === 'in_review' && <button onClick={() => { setSelectedPayment(p); setShowRejectModal(true) }} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg"><XCircle size={15}/></button>}
+                          {(p.status === 'in_review' || p.status === 'pending') && <button onClick={() => approveMut.mutate(p.id)} disabled={approveMut.isPending} className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Aprobar"><CheckCircle size={15}/></button>}
+                          {(p.status === 'in_review' || p.status === 'pending') && <button onClick={() => { setSelectedPayment(p); setShowRejectModal(true) }} className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded-lg" title="Rechazar"><XCircle size={15}/></button>}
                           {p.status !== 'approved' && <button onClick={() => { setSelectedPayment(p); setEditAmount(String(p.amount)); setShowEditModal(true) }} className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg"><Edit2 size={15}/></button>}
                         </div>
                       </td>
