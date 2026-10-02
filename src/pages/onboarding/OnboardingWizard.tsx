@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 
 import { createSchool, setUserSchool } from '@/services/db'
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
-import { storage, db } from '@/services/firebase'
+import { uploadSchoolLogo } from '@/services/storage'
+import { db } from '@/services/firebase'
 import { updateDoc, doc as firestoreDoc } from 'firebase/firestore'
 import toast from 'react-hot-toast'
 
@@ -105,15 +105,7 @@ export default function OnboardingWizard() {
 
   const uploadLogo = async (schoolId: string): Promise<string> => {
     if (!data.logoFile) return ''
-    return new Promise((resolve, reject) => {
-      const path = `schools/${schoolId}/logo-${Date.now()}.${data.logoFile!.name.split('.').pop()}`
-      const task = uploadBytesResumable(ref(storage, path), data.logoFile!)
-      task.on('state_changed',
-        s => setUploadProgress(Math.round(s.bytesTransferred / s.totalBytes * 100)),
-        reject,
-        async () => resolve(await getDownloadURL(task.snapshot.ref))
-      )
-    })
+    return uploadSchoolLogo(data.logoFile, schoolId, pct => setUploadProgress(pct))
   }
 
   const handleFinish = async () => {

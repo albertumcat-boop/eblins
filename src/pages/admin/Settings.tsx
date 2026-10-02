@@ -4,8 +4,7 @@ import { useAuth } from '@/context/AuthContext'
 import { getSchool, updateSchoolSettings } from '@/services/db'
 import { doc, updateDoc } from 'firebase/firestore'
 import { db } from '@/services/firebase'
-import { ref as storageRef, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
-import { storage } from '@/services/firebase'
+import { uploadSchoolLogo } from '@/services/storage'
 import toast from 'react-hot-toast'
 import {
   Save, Plus, Trash2, CreditCard, Calendar, ToggleLeft, ToggleRight,
@@ -223,12 +222,7 @@ export default function AdminSettings() {
   const uploadLogo = async (file: File) => {
     setLogoUploading(true)
     try {
-      const path = `schools/${schoolId}/logo-${Date.now()}.${file.name.split('.').pop()}`
-      const task = uploadBytesResumable(storageRef(storage, path), file)
-      await new Promise<void>((resolve, reject) => {
-        task.on('state_changed', undefined, reject, resolve)
-      })
-      const url = await getDownloadURL(task.snapshot.ref)
+      const url = await uploadSchoolLogo(file, schoolId)
       await updateDoc(doc(db, 'schools', schoolId), { logoUrl: url })
       setSchoolInfo(s => ({ ...s, logoUrl: url }))
       toast.success('Logo actualizado')

@@ -3,8 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { getStudentsBySchool } from '@/services/db'
 import { db } from '@/services/firebase'
-import { storage } from '@/services/firebase'
-import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage'
+import { uploadToCloudinaryRaw } from '@/services/storage'
 import { collection, addDoc, getDocs, query, where, orderBy, serverTimestamp } from 'firebase/firestore'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
@@ -45,40 +44,29 @@ export default function TeacherReportCards() {
     setUploading(true)
     try {
       const student = students.find(s => s.id === form.studentId)
-      const path = `reportcards/${appUser!.schoolId}/${form.studentId}/${Date.now()}-${file.name}`
-      const storageRef = ref(storage, path)
-      const task = uploadBytesResumable(storageRef, file)
-      await new Promise<void>((resolve, reject) => {
-        task.on('state_changed',
-          s => setProgress(Math.round(s.bytesTransferred / s.totalBytes * 100)),
-          reject,
-          async () => {
-            const url = await getDownloadURL(task.snapshot.ref)
-            await addDoc(collection(db, 'reportCards'), {
-              studentId:    form.studentId,
-              studentName:  student?.fullName,
-              schoolId:     appUser!.schoolId,
-              teacherId:    appUser!.id,
-              teacherName:  appUser!.displayName,
-              period:       form.period,
-              schoolYear:   form.schoolYear,
-              notes:        form.notes,
-              fileUrl:      url,
-              fileName:     file.name,
-              createdAt:    serverTimestamp(),
-            })
-            await addDoc(collection(db, 'notifications'), {
-              userId:    student?.representativeId,
-              schoolId:  appUser!.schoolId,
-              title:     '📄 Nueva boleta disponible',
-              body:      `La boleta de ${student?.fullName} del ${form.period} está disponible`,
-              type:      'announcement',
-              read:      false,
-              createdAt: serverTimestamp(),
-            })
-            resolve()
-          }
-        )
+      const folder = `eblins/reportcards/${appUser!.schoolId}/${form.studentId}`
+      const url = await uploadToCloudinaryRaw(file, folder, pct => setProgress(pct))
+      await addDoc(collection(db, 'reportCards'), {
+        studentId:    form.studentId,
+        studentName:  student?.fullName,
+        schoolId:     appUser!.schoolId,
+        teacherId:    appUser!.id,
+        teacherName:  appUser!.displayName,
+        period:       form.period,
+        schoolYear:   form.schoolYear,
+        notes:        form.notes,
+        fileUrl:      url,
+        fileName:     file.name,
+        createdAt:    serverTimestamp(),
+      })
+      await addDoc(collection(db, 'notifications'), {
+        userId:    student?.representativeId,
+        schoolId:  appUser!.schoolId,
+        title:     '📄 Nueva boleta disponible',
+        body:      `La boleta de ${student?.fullName} del ${form.period} está disponible`,
+        type:      'announcement',
+        read:      false,
+        createdAt: serverTimestamp(),
       })
       toast.success('Boleta subida y representante notificado')
       qc.invalidateQueries({ queryKey: ['reportcards'] })
