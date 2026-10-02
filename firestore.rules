@@ -193,6 +193,18 @@ service cloud.firestore {
       }
     }
 
+    // Exit Authorizations — salidas anticipadas solicitadas por representantes
+    match /exitAuthorizations/{authId} {
+      allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (
+        isAdmin() || isTeacher() || resource.data.representativeId == uid()
+      );
+      allow create: if isRep()
+        && request.resource.data.schoolId == userSchool()
+        && request.resource.data.representativeId == uid();
+      allow update: if (isAdmin() || isTeacher()) && belongsToSchool(resource.data.schoolId);
+      allow delete: if isAdmin() && belongsToSchool(resource.data.schoolId);
+    }
+
     // Late Notices — avisos de tardanza/ausencia enviados por representantes
     match /lateNotices/{noticeId} {
       allow read: if isSignedIn() && belongsToSchool(resource.data.schoolId) && (

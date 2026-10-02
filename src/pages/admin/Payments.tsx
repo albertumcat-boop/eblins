@@ -2,11 +2,11 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
 import { getPaymentsBySchool, approvePayment, rejectPayment, editPaymentAmount, createNotification, getStudentsBySchool, getSchool, createAuditLog } from '@/services/db'
-import { generatePaymentReceiptPDF } from '@/utils/exports'
+import { generatePaymentReceiptPDF, exportAdminPaymentsExcel } from '@/utils/exports'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CheckCircle, XCircle, Edit2, Search, ExternalLink, AlertCircle, Clock, FileText } from 'lucide-react'
+import { CheckCircle, XCircle, Edit2, Search, ExternalLink, AlertCircle, Clock, FileText, Download } from 'lucide-react'
 import clsx from 'clsx'
 import type { Payment } from '@/types'
 
@@ -128,14 +128,23 @@ export default function AdminPayments() {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between flex-wrap gap-3">
         <h1 className="text-2xl font-bold text-slate-800">Gestión de Pagos</h1>
-        {payments.length >= 200 && (
-          <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
-            Mostrando los últimos 200 pagos
-          </span>
-        )}
+        <div className="flex items-center gap-3">
+          {payments.length >= 200 && (
+            <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg">
+              Mostrando los últimos 200 pagos
+            </span>
+          )}
+          <button
+            onClick={() => exportAdminPaymentsExcel(filtered, studentMap, (school as any)?.name || 'EduFinance')}
+            disabled={filtered.length === 0}
+            className="flex items-center gap-2 border border-slate-200 text-slate-600 px-3 py-2 rounded-xl text-sm hover:bg-slate-50 disabled:opacity-40">
+            <Download size={14}/>Exportar Excel
+          </button>
+        </div>
       </div>
+
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"/>

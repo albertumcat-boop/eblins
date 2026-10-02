@@ -41,6 +41,7 @@ import RepSchedules from '@/pages/representative/Schedules'
 import RepSupplies from '@/pages/representative/Supplies'
 import RepMeetings from '@/pages/representative/Meetings'
 import RepLateNotice from '@/pages/representative/LateNotice'
+import RepExitAuth from '@/pages/representative/ExitAuth'
 import TeacherDashboard from '@/pages/teacher/Dashboard'
 import TeacherAnnouncements from '@/pages/teacher/Announcements'
 import TeacherStudents from '@/pages/teacher/Students'
@@ -50,6 +51,7 @@ import TeacherBehavior from '@/pages/teacher/Behavior'
 import TeacherReportCards from '@/pages/teacher/ReportCards'
 import TeacherTasks from '@/pages/teacher/Tasks'
 import TeacherSchedules from '@/pages/teacher/Schedules'
+import TeacherExitAuths from '@/pages/teacher/ExitAuths'
 import Chat from '@/pages/Chat'
 import InstallPrompt from '@/components/InstallPrompt'
 import OnboardingWizard from '@/pages/onboarding/OnboardingWizard'
@@ -179,6 +181,7 @@ function AppRoutes() {
         <Route path="supplies" element={<RepSupplies />} />
         <Route path="meetings" element={<RepMeetings />} />
         <Route path="late-notice" element={<RepLateNotice />} />
+        <Route path="exit-auth" element={<RepExitAuth />} />
         <Route path="chat" element={<Chat />} />
       </Route>
       <Route path="*" element={<NotFound />} />
@@ -195,6 +198,7 @@ function AppRoutes() {
         <Route path="behavior" element={<TeacherBehavior />} />
         <Route path="tasks" element={<TeacherTasks />} />
         <Route path="schedules" element={<TeacherSchedules />} />
+        <Route path="exit-auths" element={<TeacherExitAuths />} />
         <Route path="reportcards" element={<TeacherReportCards />} />
         <Route path="chat" element={<Chat />} />
       </Route>

@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useState } from 'react'
 import {
   LayoutDashboard, Megaphone, GraduationCap, BookOpen, CalendarCheck,
-  ShieldAlert, ListTodo, Clock, FileText, User,
+  ShieldAlert, ListTodo, Clock, FileText, User, DoorOpen,
   LogOut, Menu, X, MoreHorizontal, ChevronDown,
 } from 'lucide-react'
 import { useAuth } from '@/context/AuthContext'
@@ -27,6 +27,7 @@ const MORE_NAV = [
   { to: '/behavior',   icon: ShieldAlert,   label: 'Conducta' },
   { to: '/tasks',      icon: ListTodo,      label: 'Tareas' },
   { to: '/schedules',  icon: Clock,         label: 'Horarios' },
+  { to: '/exit-auths', icon: DoorOpen,      label: 'Salidas' },
   { to: '/reportcards',icon: FileText,      label: 'Boletas' },
 ]
 
@@ -39,6 +40,7 @@ const ALL_NAV = [
   { to: '/behavior',   icon: ShieldAlert,     label: 'Conducta' },
   { to: '/tasks',      icon: ListTodo,        label: 'Tareas' },
   { to: '/schedules',  icon: Clock,           label: 'Horarios' },
+  { to: '/exit-auths', icon: DoorOpen,        label: 'Salidas' },
   { to: '/reportcards',icon: FileText,        label: 'Boletas' },
 ]
 

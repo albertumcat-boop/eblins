@@ -34,6 +34,7 @@ const MORE_NAV = [
   { to: '/reportcards',icon: FileText,       label: 'Boletas' },
   { to: '/messages',    icon: MessageSquare,  label: 'Mensajes' },
   { to: '/late-notice', icon: AlarmClock,     label: 'Tardanza/Ausencia' },
+  { to: '/exit-auth',   icon: LogOut,         label: 'Salida Anticipada' },
 ]
 
 // Full sidebar nav (desktop)

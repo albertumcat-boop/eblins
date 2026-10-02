@@ -356,6 +356,21 @@ export const saveSchedule = async (schoolId: string, grade: string, section: str
     await addDoc(collection(db, 'schedules'), { schoolId, grade, section, content, createdAt: serverTimestamp() })
   }
 }
+export const saveScheduleBlocks = async (
+  schoolId: string, grade: string, section: string,
+  blocks: Array<{ startTime: string; endTime: string; subjects: Record<string, string> }>,
+  days: string[]
+) => {
+  const q = query(collection(db, 'schedules'),
+    where('schoolId', '==', schoolId), where('grade', '==', grade), where('section', '==', section))
+  const existing = await getDocs(q)
+  const payload = { blocks, days, updatedAt: serverTimestamp() }
+  if (!existing.empty) {
+    await updateDoc(doc(db, 'schedules', existing.docs[0].id), payload)
+  } else {
+    await addDoc(collection(db, 'schedules'), { schoolId, grade, section, content: '', ...payload, createdAt: serverTimestamp() })
+  }
+}
 export const getSchedule = async (schoolId: string, grade: string, section: string) => {
   const q = query(collection(db, 'schedules'),
     where('schoolId', '==', schoolId), where('grade', '==', grade), where('section', '==', section))
@@ -366,6 +381,31 @@ export const getAllSchedules = async (schoolId: string) => {
   const q = query(collection(db, 'schedules'), where('schoolId', '==', schoolId))
   return (await getDocs(q)).docs.map(d => ({ id: d.id, ...d.data() }))
 }
+
+// ── AUTORIZACIONES DE SALIDA ──────────────────────────────────────
+export const createExitAuth = async (data: any) => {
+  const r = await addDoc(collection(db, 'exitAuthorizations'), { ...data, status: 'pending', createdAt: serverTimestamp() })
+  return r.id
+}
+export const getExitAuthsByRep = async (repId: string, schoolId: string) => {
+  const q = query(collection(db, 'exitAuthorizations'),
+    where('representativeId', '==', repId), where('schoolId', '==', schoolId),
+    orderBy('createdAt', 'desc'), limit(50))
+  return (await getDocs(q)).docs.map(d => fromDoc<any>(d))
+}
+export const getExitAuthsByClass = async (schoolId: string, grade: string, section: string) => {
+  const q = query(collection(db, 'exitAuthorizations'),
+    where('schoolId', '==', schoolId), where('grade', '==', grade), where('section', '==', section),
+    orderBy('createdAt', 'desc'), limit(100))
+  return (await getDocs(q)).docs.map(d => fromDoc<any>(d))
+}
+export const getExitAuthsBySchool = async (schoolId: string) => {
+  const q = query(collection(db, 'exitAuthorizations'),
+    where('schoolId', '==', schoolId), orderBy('createdAt', 'desc'), limit(100))
+  return (await getDocs(q)).docs.map(d => fromDoc<any>(d))
+}
+export const updateExitAuthStatus = (id: string, status: 'approved' | 'rejected', notes?: string) =>
+  updateDoc(doc(db, 'exitAuthorizations', id), { status, notes: notes || '', reviewedAt: serverTimestamp() })
 
 // ── ÚTILES ESCOLARES ──────────────────────────────────────────────
 export const saveSupplies = async (schoolId: string, grade: string, data: any) => {

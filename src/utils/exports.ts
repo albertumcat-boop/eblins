@@ -117,3 +117,31 @@ export function generatePaymentReceiptPDF(payment: any, studentName: string, sch
 
   doc.save(`recibo-${studentName.replace(/\s/g, '_')}-${payment.id?.slice(-6)}.pdf`)
 }
+
+export function exportAdminPaymentsExcel(
+  payments: Payment[],
+  studentMap: Record<string, { fullName: string; grade: string; section: string }>,
+  schoolName: string
+) {
+  const rows = payments.map(p => {
+    const st = studentMap[p.studentId]
+    return {
+      'Estudiante': st?.fullName || p.studentId,
+      'Grado': st ? `${st.grade}${st.section}` : '—',
+      'Concepto': p.description || p.monthLabel || '—',
+      'Tipo': p.type === 'monthly' ? 'Mensualidad' : p.type === 'enrollment' ? 'Inscripción' : 'Adicional',
+      'Monto ($)': p.amount,
+      'Pagado ($)': p.amountPaid,
+      'Saldo ($)': p.balance,
+      'Estado': statusLabel(p.status),
+      'Método': (p as any).paymentMethod || '—',
+      'Referencia': (p as any).reference || '—',
+      'Fecha': p.paidAt ? format(toDate(p.paidAt), 'dd/MM/yyyy', { locale: es }) : '—',
+    }
+  })
+  const ws = XLSX.utils.json_to_sheet(rows)
+  ws['!cols'] = [22, 12, 24, 14, 11, 11, 11, 12, 14, 14, 12].map(w => ({ wch: w }))
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, 'Pagos')
+  XLSX.writeFile(wb, `pagos-${schoolName.replace(/\s/g, '_')}-${format(new Date(), 'yyyy-MM-dd')}.xlsx`)
+}

@@ -6,16 +6,25 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const DISMISSED_KEY = 'edufinance_install_dismissed'
+const DISMISS_DAYS = 7
+
+function isDismissed() {
+  try {
+    const val = localStorage.getItem(DISMISSED_KEY)
+    if (!val) return false
+    return Date.now() - parseInt(val) < DISMISS_DAYS * 86400_000
+  } catch { return false }
+}
 
 export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    // Only show on mobile
-    if (window.innerWidth >= 768) return
-    // Don't show if already dismissed
-    if (localStorage.getItem(DISMISSED_KEY)) return
+    // Don't show if running as installed PWA
+    if (window.matchMedia('(display-mode: standalone)').matches) return
+    // Don't show if dismissed within the last 7 days
+    if (isDismissed()) return
 
     const handler = (e: Event) => {
       e.preventDefault()
@@ -38,7 +47,7 @@ export default function InstallPrompt() {
   }
 
   const handleDismiss = () => {
-    localStorage.setItem(DISMISSED_KEY, '1')
+    try { localStorage.setItem(DISMISSED_KEY, String(Date.now())) } catch {}
     setVisible(false)
   }
 
