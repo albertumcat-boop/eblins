@@ -1,7 +1,7 @@
 import imageCompression from 'browser-image-compression'
 
 const CLOUD_NAME = 'dsu0vdcvx'
-const UPLOAD_PRESET = 'subir_baly'
+const UPLOAD_PRESET = 'eblins_uploads'
 const UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/upload`
 const IMG_OPTS = { maxSizeMB: 0.8, maxWidthOrHeight: 1920, useWebWorker: true }
 
