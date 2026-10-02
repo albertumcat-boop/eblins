@@ -61,6 +61,7 @@ export default function AdminPayments() {
 
   const approveMut = useMutation({
     mutationFn: (paymentId: string) => approvePayment(paymentId, appUser!.id),
+    onError: () => toast.error('Error al aprobar el pago'),
     onSuccess: async (_, paymentId) => {
       const p = payments.find(x => x.id === paymentId)
       if (p) {
@@ -86,11 +87,13 @@ export default function AdminPayments() {
 
   const unapproveMut = useMutation({
     mutationFn: (paymentId: string) => unapprovePayment(paymentId),
+    onError: () => toast.error('Error al revertir el pago'),
     onSuccess: () => { toast.success('Pago revertido a pendiente'); qc.invalidateQueries({ queryKey: ['payments'] }) },
   })
 
   const rejectMut = useMutation({
     mutationFn: ({ id, reason }: { id: string; reason: string }) => rejectPayment(id, reason),
+    onError: () => toast.error('Error al rechazar el pago'),
     onSuccess: async (_, { id }) => {
       const p = payments.find(x => x.id === id)
       if (p) {
@@ -117,6 +120,7 @@ export default function AdminPayments() {
 
   const editMut = useMutation({
     mutationFn: ({ id, amount }: { id: string; amount: number }) => editPaymentAmount(id, amount),
+    onError: () => toast.error('Error al actualizar el monto'),
     onSuccess: () => {
       toast.success('Monto actualizado')
       setShowEditModal(false)
