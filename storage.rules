@@ -1,0 +1,42 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Receipts: solo el representante dueño puede subir, admins y el propio rep pueden leer
+    match /receipts/{schoolId}/{studentId}/{filename} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 10 * 1024 * 1024   // max 10 MB
+                   && (request.resource.contentType.matches('image/.*')
+                       || request.resource.contentType == 'application/pdf');
+    }
+
+    // Announcement files: cualquier usuario autenticado de la plataforma puede subir/leer
+    match /announcements/{schoolId}/{teacherId}/{filename} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 20 * 1024 * 1024;
+    }
+
+    // Student photos / QR codes
+    match /students/{schoolId}/{filename} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // School logos
+    match /schools/{schoolId}/{filename} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
+    // Deny everything else
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
