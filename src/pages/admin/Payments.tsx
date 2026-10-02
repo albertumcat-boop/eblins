@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '@/context/AuthContext'
-import { getPaymentsBySchool, approvePayment, rejectPayment, editPaymentAmount, createNotification, getStudentsBySchool, getSchool, createAuditLog } from '@/services/db'
+import { getPaymentsBySchool, approvePayment, unapprovePayment, rejectPayment, editPaymentAmount, createNotification, getStudentsBySchool, getSchool, createAuditLog } from '@/services/db'
 import { generatePaymentReceiptPDF, exportAdminPaymentsExcel } from '@/utils/exports'
 import toast from 'react-hot-toast'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { CheckCircle, XCircle, Edit2, Search, ExternalLink, AlertCircle, Clock, FileText, Download } from 'lucide-react'
+import { CheckCircle, XCircle, Edit2, Search, ExternalLink, AlertCircle, Clock, FileText, Download, RotateCcw } from 'lucide-react'
 import clsx from 'clsx'
 import type { Payment } from '@/types'
 
@@ -82,6 +82,11 @@ export default function AdminPayments() {
       toast.success('Pago aprobado — recibo generado')
       qc.invalidateQueries({ queryKey: ['payments'] })
     },
+  })
+
+  const unapproveMut = useMutation({
+    mutationFn: (paymentId: string) => unapprovePayment(paymentId),
+    onSuccess: () => { toast.success('Pago revertido a pendiente'); qc.invalidateQueries({ queryKey: ['payments'] }) },
   })
 
   const rejectMut = useMutation({
@@ -193,6 +198,12 @@ export default function AdminPayments() {
                             <button onClick={() => { const s = studentMap[p.studentId]; if (s) generatePaymentReceiptPDF(p, s.fullName, (school as any)?.name || 'EduFinance') }}
                               className="p-1.5 text-slate-500 hover:text-purple-600 hover:bg-purple-50 rounded-lg" title="Descargar recibo">
                               <FileText size={15}/>
+                            </button>
+                          )}
+                          {p.status === 'approved' && (
+                            <button onClick={() => unapproveMut.mutate(p.id)} disabled={unapproveMut.isPending}
+                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg" title="Revertir aprobación">
+                              <RotateCcw size={15}/>
                             </button>
                           )}
                           {(p.status === 'in_review' || p.status === 'pending') && <button onClick={() => approveMut.mutate(p.id)} disabled={approveMut.isPending} className="p-1.5 text-slate-500 hover:text-green-600 hover:bg-green-50 rounded-lg" title="Aprobar"><CheckCircle size={15}/></button>}

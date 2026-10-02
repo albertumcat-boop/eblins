@@ -132,6 +132,12 @@ export const approvePayment = async (paymentId: string, adminId: string) => {
     }
   } catch { /* no interrumpir el flujo principal */ }
 }
+export const unapprovePayment = async (paymentId: string) => {
+  await updateDoc(doc(db, 'payments', paymentId), {
+    status: 'pending', approvedBy: null, approvedAt: null,
+  })
+}
+
 export const rejectPayment = async (paymentId: string, reason: string) => {
   const preSnap = await getDoc(doc(db, 'payments', paymentId))
   if (!preSnap.exists()) return
